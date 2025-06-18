@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Ajouter le répertoire racine du projet au début du path pour assurer que les imports fonctionnent
-project_root = str(Path(__file__).parent.parent.parent)
+project_root = str(Path(__file__).parent.parent.parent.parent)
 sys.path.insert(0, project_root)
 
 # Import direct du module
@@ -23,7 +23,7 @@ st.title("🔬 Visualisation de Cellules Sanguines")
 st.markdown("Cette application permet de visualiser des échantillons d'images de cellules sanguines.")
 
 # Chemin vers le dataset
-data_path = os.path.join(Path(__file__).parent.parent, "data", "raw", "bloodcells_dataset")
+data_path = os.path.join(Path(__file__).parent.parent.parent, "data", "raw", "bloodcells_dataset")
 
 # Initialisation du visualiseur
 @st.cache_resource
@@ -62,8 +62,19 @@ if visualizer:
         value=3
     )
     
-    # Affichage en couleur ou en niveaux de gris
-    display_color = st.sidebar.checkbox("Afficher en couleur", value=True)
+    # Mode d'affichage (niveaux de gris, couleur, canaux RGB)
+    display_mode = st.sidebar.selectbox(
+        "Mode d'affichage",
+        options=["gray", "color", "red", "green", "blue"],
+        format_func=lambda x: {
+            "gray": "Niveaux de gris",
+            "color": "Couleur",
+            "red": "Canal Rouge",
+            "green": "Canal Vert",
+            "blue": "Canal Bleu"
+        }.get(x, x),
+        index=1  # Par défaut: couleur
+    )
     
     # Randomisation des images
     randomize = st.sidebar.checkbox("Sélection aléatoire des images", value=True)
@@ -83,7 +94,7 @@ if visualizer:
         with st.spinner("Chargement des images..."):
             fig = visualizer.display_sample_images_per_subdir(
                 num_samples_per_subdir=num_samples,
-                display_color=display_color,
+                display_mode=display_mode,
                 randomize=randomize
             )
             
@@ -93,43 +104,43 @@ if visualizer:
     except Exception as e:
         st.error(f"Erreur lors de l'affichage des images: {e}")
         
-    # Affichage d'une image individuelle
-    st.subheader("Visualiser une image spécifique")
+#     # Affichage d'une image individuelle
+#     st.subheader("Visualiser une image spécifique")
     
-    # Sélection du type de cellule
-    selected_cell_type = st.selectbox("Type de cellule", cell_types)
+#     # Sélection du type de cellule
+#     selected_cell_type = st.selectbox("Type de cellule", cell_types)
     
-    if selected_cell_type:
-        # Nombre d'images disponibles pour ce type
-        num_images = visualizer.get_image_count(selected_cell_type)
-        st.write(f"{num_images} images disponibles pour {selected_cell_type}")
+#     if selected_cell_type:
+#         # Nombre d'images disponibles pour ce type
+#         num_images = visualizer.get_image_count(selected_cell_type)
+#         st.write(f"{num_images} images disponibles pour {selected_cell_type}")
         
-        # Sélection de l'index de l'image
-        selected_index = st.slider(
-            "Index de l'image",
-            min_value=0,
-            max_value=num_images - 1 if num_images > 0 else 0,
-            value=0
-        )
+#         # Sélection de l'index de l'image
+#         selected_index = st.slider(
+#             "Index de l'image",
+#             min_value=0,
+#             max_value=num_images - 1 if num_images > 0 else 0,
+#             value=0
+#         )
         
-        # Affichage de l'image sélectionnée
-        if st.button("Afficher l'image"):
-            try:
-                # Création d'une figure pour l'image sélectionnée
-                plt.figure(figsize=(8, 6))
-                visualizer.show_image(
-                    subdir_name=selected_cell_type,
-                    index_img=selected_index,
-                    color=display_color
-                )
+#         # Affichage de l'image sélectionnée
+#         if st.button("Afficher l'image"):
+#             try:
+#                 # Création d'une figure pour l'image sélectionnée
+#                 plt.figure(figsize=(8, 6))
+#                 visualizer.show_image(
+#                     subdir_name=selected_cell_type,
+#                     index_img=selected_index,
+#                     display_mode=display_mode
+#                 )
                 
-                # Affichage de la figure
-                st.pyplot(plt.gcf())
+#                 # Affichage de la figure
+#                 st.pyplot(plt.gcf())
                 
-            except Exception as e:
-                st.error(f"Erreur lors de l'affichage de l'image: {e}")
-else:
-    st.error("Le visualiseur n'a pas pu être initialisé. Vérifiez le chemin vers le dataset.")
+#             except Exception as e:
+#                 st.error(f"Erreur lors de l'affichage de l'image: {e}")
+# else:
+#     st.error("Le visualiseur n'a pas pu être initialisé. Vérifiez le chemin vers le dataset.")
 
 # Informations sur l'application
 st.sidebar.markdown("---")
@@ -138,6 +149,11 @@ st.sidebar.info(
     **À propos de cette application**
     
     Cette application utilise la classe `ImageVisualizer` pour afficher des images de cellules sanguines.
+    
+    Fonctionnalités:
+    - Visualisation en niveaux de gris
+    - Visualisation en couleur
+    - Visualisation des canaux RGB séparés
     
     Développée dans le cadre du projet BloodCellClassification.
     """
