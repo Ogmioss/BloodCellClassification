@@ -141,7 +141,7 @@ class ImageVisualizer:
         
         return path_model.full_path
     
-    def show_image(self, subdir_name: str, index_img: int, color: bool = False, 
+    def show_image(self, subdir_name: str, index_img: int, display_mode: str = 'gray', 
                   ax: Optional[plt.Axes] = None) -> bool:
         """
         Affiche une image spécifique du dataset.
@@ -149,7 +149,12 @@ class ImageVisualizer:
         Args:
             subdir_name: Nom du sous-répertoire (type de cellule).
             index_img: Index de l'image à afficher.
-            color: Si True, affiche l'image en couleur. Sinon, en niveaux de gris.
+            display_mode: Mode d'affichage de l'image. Options:
+                          'gray' - niveaux de gris
+                          'color' - couleur RGB
+                          'red' - canal rouge uniquement
+                          'green' - canal vert uniquement
+                          'blue' - canal bleu uniquement
             ax: L'axe sur lequel afficher l'image. Si None, crée une nouvelle figure.
             
         Returns:
@@ -170,23 +175,46 @@ class ImageVisualizer:
             plt.figure(figsize=(8, 5))
             ax = plt.gca()  # Get Current Axis
         
-        # Charge et affiche l'image
-        if color:
-            img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)
-            if img_bgr is None:
-                print(f"Erreur : Impossible de charger l'image '{img_path}'.")
-                return False
-            img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-            ax.imshow(img_rgb)
-            ax.set_title(f"{subdir_name} (index {index_img})")
-        else:
-            img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-            if img_gray is None:
-                print(f"Erreur : Impossible de charger l'image '{img_path}'.")
-                return False
-            ax.imshow(img_gray, cmap='gray')
-            ax.set_title(f"{subdir_name} (index {index_img})")
+        # Charge l'image en couleur pour tous les modes (on extraira les canaux si nécessaire)
+        img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            print(f"Erreur : Impossible de charger l'image '{img_path}'.")
+            return False
         
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        
+        # Affiche l'image selon le mode demandé
+        if display_mode == 'gray':
+            img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+            ax.imshow(img_gray, cmap='gray')
+            title_mode = "(Niveaux de gris)"
+        elif display_mode == 'color':
+            ax.imshow(img_rgb)
+            title_mode = "(Couleur)"
+        elif display_mode == 'red':
+            # Extrait le canal rouge (R)
+            red_channel = np.zeros_like(img_rgb)
+            red_channel[:, :, 0] = img_rgb[:, :, 0]  # Copie uniquement le canal rouge
+            ax.imshow(red_channel)
+            title_mode = "(Canal Rouge)"
+        elif display_mode == 'green':
+            # Extrait le canal vert (G)
+            green_channel = np.zeros_like(img_rgb)
+            green_channel[:, :, 1] = img_rgb[:, :, 1]  # Copie uniquement le canal vert
+            ax.imshow(green_channel)
+            title_mode = "(Canal Vert)"
+        elif display_mode == 'blue':
+            # Extrait le canal bleu (B)
+            blue_channel = np.zeros_like(img_rgb)
+            blue_channel[:, :, 2] = img_rgb[:, :, 2]  # Copie uniquement le canal bleu
+            ax.imshow(blue_channel)
+            title_mode = "(Canal Bleu)"
+        else:
+            print(f"Mode d'affichage '{display_mode}' non reconnu. Utilisation du mode 'color'.")
+            ax.imshow(img_rgb)
+            title_mode = "(Couleur)"
+        
+        ax.set_title(f"{subdir_name} {title_mode}\nindex: {index_img}")
         ax.set_xticks([])
         ax.set_yticks([])
         
@@ -226,7 +254,7 @@ class ImageVisualizer:
         return random.sample(range(total_images), count)
     
     def display_sample_images_per_subdir(self, num_samples_per_subdir: int = 3, 
-                                        display_color: bool = True, 
+                                        display_mode: str = 'gray', 
                                         randomize: bool = False) -> plt.Figure:
         """
         Crée une figure avec des échantillons d'images pour chaque sous-répertoire (type de cellule)
@@ -234,7 +262,12 @@ class ImageVisualizer:
         
         Args:
             num_samples_per_subdir: Nombre d'images à afficher pour chaque sous-répertoire.
-            display_color: Si True, affiche les images en couleur. Sinon, en niveaux de gris.
+            display_mode: Mode d'affichage des images. Options:
+                          'gray' - niveaux de gris
+                          'color' - couleur RGB
+                          'red' - canal rouge uniquement
+                          'green' - canal vert uniquement
+                          'blue' - canal bleu uniquement
             randomize: Si True, sélectionne des images aléatoires. Sinon, utilise les premières images.
             
         Returns:
@@ -274,7 +307,7 @@ class ImageVisualizer:
                     success = self.show_image(
                         subdir_name=subdir_name,
                         index_img=idx,
-                        color=display_color,
+                        display_mode=display_mode,
                         ax=axes[i, j]
                     )
                     
@@ -287,7 +320,16 @@ class ImageVisualizer:
                 axes[i, j_empty].set_title(f"{subdir_name}\nPas assez d'images")
                 axes[i, j_empty].axis('off')
         
-        fig.suptitle("Échantillons d'images par type de cellule", fontsize=16, y=1.01)
+        # Détermine le titre en fonction du mode d'affichage
+        mode_title = {
+            'gray': "en niveaux de gris",
+            'color': "en couleur",
+            'red': "canal rouge",
+            'green': "canal vert",
+            'blue': "canal bleu"
+        }.get(display_mode, "")
+        
+        fig.suptitle(f"Échantillons d'images par type de cellule ({mode_title})", fontsize=16, y=1.01)
         plt.tight_layout(rect=[0, 0, 1, 0.99])
         return fig
 
@@ -304,11 +346,29 @@ if __name__ == "__main__":
         # Affiche les types de cellules disponibles
         print(f"Types de cellules disponibles : {visualizer.get_available_cell_types()}")
         
-        # Affiche une image spécifique
-        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, color=True)
+        # Exemples d'utilisation avec les différents modes d'affichage
         
-        # Affiche des échantillons pour chaque type de cellule (images aléatoires)
-        # visualizer.display_sample_images_per_subdir(num_samples_per_subdir=3, display_color=True, randomize=True)
+        # Affiche une image spécifique en niveaux de gris
+        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, display_mode='gray')
+        
+        # Affiche une image spécifique en couleur
+        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, display_mode='color')
+        
+        # Affiche une image spécifique avec uniquement le canal rouge
+        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, display_mode='red')
+        
+        # Affiche une image spécifique avec uniquement le canal vert
+        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, display_mode='green')
+        
+        # Affiche une image spécifique avec uniquement le canal bleu
+        # visualizer.show_image(subdir_name="EOSINOPHIL", index_img=0, display_mode='blue')
+        
+        # Affiche des échantillons pour chaque type de cellule (images aléatoires) en couleur
+        # visualizer.display_sample_images_per_subdir(num_samples_per_subdir=3, display_mode='color', randomize=True)
+        
+        # Affiche des échantillons pour chaque type de cellule avec uniquement le canal rouge
+        # visualizer.display_sample_images_per_subdir(num_samples_per_subdir=3, display_mode='red', randomize=True)
         
     except Exception as e:
         print(f"Une erreur est survenue : {e}")
+
