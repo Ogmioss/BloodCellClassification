@@ -22,37 +22,40 @@ st.set_page_config(
 st.title("🔬 Visualisation de Cellules Sanguines")
 st.markdown("Cette application permet de visualiser des échantillons d'images de cellules sanguines.")
 
-# Chemin vers le dataset
-data_path = os.path.join(Path(__file__).parent.parent.parent, "data", "raw", "bloodcells_dataset")
+# Définition des chemins vers les datasets
+raw_data_path = os.path.join(Path(__file__).parent.parent.parent, "data", "raw", "bloodcells_dataset")
+masked_data_path = os.path.join(Path(__file__).parent.parent.parent, "data", "processed", "masqued_bloodcells_dataset")
 
-# Initialisation du visualiseur
+# Paramètres de visualisation dans la sidebar
+st.sidebar.header("Paramètres")
+
+# Ajout du bouton pour appliquer le masque
+apply_mask = st.sidebar.checkbox("Appliquer masque", value=False)
+
+# Initialisation des deux visualiseurs (original et masqué)
 @st.cache_resource
-def get_visualizer(path):
-    """
-    Initialise et met en cache le visualiseur d'images.
-    
-    Args:
-        path: Chemin vers le dataset.
-        
-    Returns:
-        ImageVisualizer: Instance du visualiseur.
-    """
+def get_visualizers():
+    """Initialise et met en cache les deux visualiseurs d'images."""
     try:
-        return ImageVisualizer(path)
+        raw_visualizer = ImageVisualizer(raw_data_path)
+        masked_visualizer = ImageVisualizer(masked_data_path)
+        return raw_visualizer, masked_visualizer
     except Exception as e:
-        st.error(f"Erreur lors de l'initialisation du visualiseur: {e}")
-        return None
+        st.error(f"Erreur lors de l'initialisation des visualiseurs: {e}")
+        return None, None
 
-# Récupération du visualiseur
-visualizer = get_visualizer(data_path)
+# Récupération des visualiseurs
+raw_visualizer, masked_visualizer = get_visualizers()
+
+# Sélection du visualiseur en fonction de l'état du bouton
+visualizer = masked_visualizer if apply_mask else raw_visualizer
 
 if visualizer:
     # Affichage des types de cellules disponibles
     cell_types = visualizer.get_available_cell_types()
     st.write(f"**Types de cellules disponibles:** {', '.join(cell_types)}")
     
-    # Paramètres de visualisation
-    st.sidebar.header("Paramètres")
+    # Paramètres supplémentaires
     
     # Nombre d'échantillons par type de cellule
     num_samples = st.sidebar.slider(
@@ -82,6 +85,8 @@ if visualizer:
     # Bouton pour actualiser les images
     if st.sidebar.button("🔄 Actualiser les images"):
         st.session_state.refresh_counter = st.session_state.get('refresh_counter', 0) + 1
+        if 'image_indices' in st.session_state:
+            del st.session_state['image_indices']
     
     # Affichage des images
     st.subheader("Échantillons d'images par type de cellule")
@@ -90,13 +95,64 @@ if visualizer:
     refresh_counter = st.session_state.get('refresh_counter', 0)
     
     try:
-        # Génération de la figure avec les échantillons d'images
+        # Stockage des indices aléatoires dans session_state pour conserver les mêmes images
+        if 'image_indices' not in st.session_state or st.session_state.get('refresh_counter', 0) != refresh_counter:
+            st.session_state.image_indices = {}
+            for cell_type in cell_types:
+                # Génère des indices aléatoires si randomize est activé, sinon utilise les premiers indices
+                if randomize:
+                    try:
+                        indices = raw_visualizer.get_random_indices(cell_type, num_samples)
+                    except ValueError:
+                        indices = list(range(min(num_samples, raw_visualizer.get_image_count(cell_type))))
+                else:
+                    indices = list(range(min(num_samples, raw_visualizer.get_image_count(cell_type))))
+                st.session_state.image_indices[cell_type] = indices
+        
+        # Génération de la figure avec les échantillons d'images en utilisant les mêmes indices
         with st.spinner("Chargement des images..."):
-            fig = visualizer.display_sample_images_per_subdir(
-                num_samples_per_subdir=num_samples,
-                display_mode=display_mode,
-                randomize=randomize
+            # Création d'une figure avec des subplots
+            fig, axes = plt.subplots(
+                nrows=len(cell_types),
+                ncols=num_samples,
+                figsize=(5 * num_samples, 4.5 * len(cell_types)),
+                squeeze=False
             )
+            
+            # Affiche chaque image avec les mêmes indices pour les deux visualiseurs
+            for i, cell_type in enumerate(cell_types):
+                indices = st.session_state.image_indices.get(cell_type, [])
+                
+                # Affiche chaque image
+                for j, idx in enumerate(indices):
+                    if j < num_samples:  # Sécurité supplémentaire
+                        success = visualizer.show_image(
+                            subdir_name=cell_type,
+                            index_img=idx,
+                            display_mode=display_mode,
+                            ax=axes[i, j]
+                        )
+                        
+                        if not success:
+                            axes[i, j].set_title(f"{cell_type}\nNon disponible")
+                            axes[i, j].axis('off')
+                
+                # Désactive les axes des subplots restants si pas assez d'images
+                for j_empty in range(len(indices), num_samples):
+                    axes[i, j_empty].set_title(f"{cell_type}\nPas assez d'images")
+                    axes[i, j_empty].axis('off')
+            
+            # Détermine le titre en fonction du mode d'affichage
+            mode_title = {
+                'gray': "en niveaux de gris",
+                'color': "en couleur",
+                'red': "canal rouge",
+                'green': "canal vert",
+                'blue': "canal bleu"
+            }.get(display_mode, "")
+            
+            fig.suptitle(f"Échantillons d'images par type de cellule ({mode_title})", fontsize=16, y=1.01)
+            plt.tight_layout(rect=[0, 0, 1, 0.99])
             
             # Affichage de la figure
             st.pyplot(fig)
