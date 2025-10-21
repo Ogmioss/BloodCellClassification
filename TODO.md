@@ -17,6 +17,16 @@
 - [x] Added model retraining button in Modele interface
 - [x] Rédigé la documentation de `src/` dans `docs/src_documentation.md`
 
+### Application Orchestration
+- [x] Created `start.sh` script with PID tracking and logging
+- [x] Created `stop.sh` script for graceful shutdown
+- [x] Added runtime configuration paths in `conf.yaml`
+- [x] Implemented comprehensive tests for scripts (`test_scripts.py`)
+- [x] Dockerized application with multi-stage build
+- [x] Created `docker-compose.yml` for easy deployment
+- [x] Created `.dockerignore` for optimized builds
+- [x] Updated `README.md` with Docker instructions
+
 ### Architecture Structure
 ```
 src/
@@ -37,17 +47,36 @@ src/
 └── pipe/
     └── train_model.py               # Main training script
 
+scripts/
+├── start.sh                         # Launch Streamlit with PID tracking
+└── stop.sh                          # Stop Streamlit gracefully
+
 tests/
 ├── test_data_transform_service.py
 ├── test_model_factory.py
 ├── test_resnet_classifier.py
 ├── test_evaluation_service.py
-└── test_inference_service.py
+├── test_inference_service.py
+└── test_scripts.py                  # Tests for start/stop scripts
 ```
 
 ## Usage
 
+### Run Application
+
+```bash
+# Start Streamlit app
+./start.sh
+
+# Stop Streamlit app
+./stop.sh
+
+# View logs
+tail -f logs/streamlit.log
+```
+
 ### Run Training
+
 ```bash
 # Using script entry point (recommended)
 uv run train-model
@@ -57,16 +86,19 @@ python3 -m src.pipe.train_model
 ```
 
 ### Run Tests
+
 ```bash
 uv run pytest tests/
 ```
 
 ### Configuration
+
 All parameters centralized in `src/conf.yaml`:
 - Training parameters (batch_size, learning_rate, epochs, etc.)
 - Model configuration (architecture, pretrained weights)
 - Data augmentation settings
 - Path management
+- Runtime configuration (PID file, log file)
 
 ## Next Steps
 

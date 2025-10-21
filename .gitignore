@@ -196,3 +196,8 @@ cython_debug/
 
 # BloodCellClassification
 src/data/
+
+# Runtime files
+streamlit.pid
+logs/streamlit.log
+nohup.out
