@@ -13,16 +13,17 @@ dependencies = [
     "scikit-image>=0.25.2",
     "scikit-learn>=1.7.2",
     "seaborn>=0.13.2",
+    "streamlit>=1.50.0",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
 ]
 
 [project.scripts]
-train-model = "src.train_model:main"
+train-model = "src.pipe.train_model:main"
 
 [tool.setuptools]
-packages = ["src", "src.services", "src.models"]
+packages = ["src", "src.services", "src.models", "src.pipe"]
 
 [dependency-groups]
 dev = [

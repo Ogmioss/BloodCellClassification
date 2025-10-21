@@ -12,7 +12,16 @@ The dataset contains a total of 17,092 images of individual normal cells, which 
 This high-quality labelled dataset may be used to train and test machine learning and deep learning models to recognize different types of normal peripheral blood cells. To our knowledge, this is the first publicly available set with large numbers of normal peripheral blood cells, so that it is expected to be a canonical dataset for model benchmarking.
 
 ## Entraînement du modèle
-scripts/train_model.py
+
+```bash
+# Recommandé avec uv
+uv run train-model
+```
+
+Ou directement:
+```bash
+python3 -m src.pipe.train_model
+```
 
 ## Prédiction
 scripts/predict.py
