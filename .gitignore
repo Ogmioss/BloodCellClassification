@@ -195,4 +195,4 @@ cython_debug/
 
 
 # BloodCellClassification
-app/data/
+src/data/
