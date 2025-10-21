@@ -1,8 +1,17 @@
 # BloodCellClassification
 Application pour classer les photos d'imagerie médicale de cellules sanguines par Machine Learning
 
+## Installation
+
+```bash
+# Installer le projet en mode éditable (requis pour les imports)
+uv pip install -e .
+```
+
 ## Chargement jeu de données
+```bash
 ./scripts/load_dataset.sh
+```
 
 
 ### About Dataset
@@ -27,4 +36,11 @@ python3 -m src.pipe.train_model
 scripts/predict.py
 
 ## Interface utilisateur
-app/app.py
+
+```bash
+# Avec uv (recommandé)
+uv run streamlit run src/app.py
+
+# Ou avec le script de lancement
+./start.sh
+```

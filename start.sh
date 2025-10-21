@@ -1,3 +1,3 @@
 #!/bin/bash
-source .venv/bin/activate
+# Launch Streamlit app
 streamlit run src/app.py
