@@ -26,6 +26,9 @@
 - [x] Created `docker-compose.yml` for easy deployment
 - [x] Created `.dockerignore` for optimized builds
 - [x] Updated `README.md` with Docker instructions
+- [x] Integrated Kaggle dataset download in Docker build process
+- [x] Configured `kaggle.json` credentials in Dockerfile and docker-compose
+- [x] Aligned data paths between `load_dataset.sh` and docker volumes
 
 ### Architecture Structure
 ```

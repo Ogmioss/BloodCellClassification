@@ -9,12 +9,14 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      # Mount data directory for persistence
-      - ./data:/app/data
+      # Mount data directory for persistence (aligns with load_dataset.sh structure)
+      - ./src/data:/app/src/data
       # Mount models directory for persistence
       - ./models:/app/models
       # Mount logs directory for persistence
       - ./logs:/app/logs
+      # Mount Kaggle credentials (optional, already copied during build)
+      - ./kaggle.json:/root/.kaggle/kaggle.json:ro
       # Optional: mount source for development (comment out for production)
       # - ./src:/app/src
     environment:

@@ -197,6 +197,9 @@ cython_debug/
 # BloodCellClassification
 src/data/
 
+# Kaggle credentials (sensitive)
+kaggle.json
+
 # Runtime files
 streamlit.pid
 logs/streamlit.log

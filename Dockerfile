@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libgl1 \
     libglib2.0-0 \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv package manager
@@ -22,7 +23,18 @@ COPY . .
 RUN uv sync --frozen --no-dev
 
 # Create necessary directories
-RUN mkdir -p logs data models/checkpoints
+RUN mkdir -p logs data models/checkpoints src/data/raw src/data/processed
+
+# Setup Kaggle credentials directory
+RUN mkdir -p /root/.kaggle
+
+# Copy Kaggle credentials (required for dataset download)
+COPY kaggle.json /root/.kaggle/
+RUN chmod 600 /root/.kaggle/kaggle.json
+
+# Make load_dataset.sh executable and run it to download dataset
+RUN chmod +x scripts/load_dataset.sh
+RUN bash scripts/load_dataset.sh || echo "Dataset download skipped (Kaggle credentials may be missing)"
 
 # Expose Streamlit port
 EXPOSE 8501
