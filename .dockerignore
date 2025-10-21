@@ -26,6 +26,7 @@ env
 *~
 
 # Data (will be mounted as volume)
+# Note: src/data is NOT excluded as it's needed during build for dataset download
 data
 data/
 data/**
@@ -58,8 +59,9 @@ TODO.md
 .ipynb_checkpoints
 # Keep src/notebooks/ structure but exclude notebook files via *.ipynb
 
-# Scripts (not needed in container)
-scripts/
+# Scripts (not needed in container, except load_dataset.sh)
+scripts/*
+!scripts/load_dataset.sh
 start.sh
 stop.sh
 

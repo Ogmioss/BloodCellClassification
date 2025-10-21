@@ -6,6 +6,24 @@ Application pour classer les photos d'imagerie médicale de cellules sanguines p
 ### Prérequis
 - Docker
 - Docker Compose
+- **Fichier `kaggle.json`** avec vos credentials Kaggle (voir section Configuration Kaggle)
+
+### Configuration Kaggle
+
+Le dataset est téléchargé automatiquement depuis Kaggle lors du build Docker. Vous devez fournir vos credentials :
+
+1. **Obtenir vos credentials Kaggle :**
+   - Aller sur https://www.kaggle.com/
+   - Profil → Account → API → "Create New API Token"
+   - Télécharger le fichier `kaggle.json`
+
+2. **Placer le fichier à la racine du projet :**
+   ```bash
+   # Le fichier doit être à la racine : ./kaggle.json
+   # Format : {"username":"votre_username","key":"votre_api_key"}
+   ```
+
+📖 **Documentation complète :** Voir [DOCKER_DATASET_SETUP.md](./DOCKER_DATASET_SETUP.md)
 
 ### Lancement de l'application
 
