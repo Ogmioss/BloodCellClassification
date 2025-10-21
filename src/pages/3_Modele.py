@@ -3,6 +3,8 @@ import torch
 from pathlib import Path
 import sys
 import json
+import subprocess
+import time
 
 # Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
 torch.backends.mkldnn.enabled = False
@@ -133,8 +135,83 @@ st.markdown("""
 - **Data split:** 70% train / 15% validation / 15% test
 """)
 
-# Section 4: Évaluation
-st.header("🎯 4. Évaluation")
+# Section 4: Ré-entraînement du modèle
+st.header("🔄 4. Ré-entraînement du modèle")
+
+st.markdown("""
+Cliquez sur le bouton ci-dessous pour lancer l'entraînement d'un nouveau modèle.
+Le modèle sera automatiquement sauvegardé dans le répertoire `checkpoints`.
+""")
+
+# Initialize session state for training status
+if 'training_in_progress' not in st.session_state:
+    st.session_state.training_in_progress = False
+
+col1, col2 = st.columns([1, 3])
+
+with col1:
+    if st.button("🚀 Lancer l'entraînement", type="primary", disabled=st.session_state.training_in_progress):
+        st.session_state.training_in_progress = True
+        st.rerun()
+
+with col2:
+    if st.session_state.training_in_progress:
+        st.info("⏳ Entraînement en cours... Veuillez patienter.")
+
+# Training execution
+if st.session_state.training_in_progress:
+    with st.expander("📊 Détails de l'entraînement", expanded=True):
+        status_placeholder = st.empty()
+        log_placeholder = st.empty()
+        
+        try:
+            status_placeholder.info("🔄 Démarrage de l'entraînement...")
+            
+            # Run training script using uv
+            train_script = Path(yaml_loader.project_root) / "src" / "pipe" / "train_model.py"
+            
+            # Use subprocess to run the training
+            process = subprocess.Popen(
+                ["uv", "run", "python", "-m", "src.pipe.train_model"],
+                cwd=yaml_loader.project_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+            
+            # Capture output in real-time
+            output_lines = []
+            for line in process.stdout:
+                output_lines.append(line)
+                log_placeholder.text_area("📝 Logs d'entraînement", 
+                                         value="".join(output_lines[-50:]),  # Show last 50 lines
+                                         height=300)
+            
+            # Wait for process to complete
+            process.wait()
+            
+            if process.returncode == 0:
+                status_placeholder.success("✅ Entraînement terminé avec succès!")
+                st.success(f"🎉 Le nouveau modèle a été sauvegardé dans: `{config['paths']['models']['checkpoints']}`")
+                st.info("💡 Rafraîchissez la page pour voir les nouvelles métriques.")
+                
+                # Reset training state
+                time.sleep(2)
+                st.session_state.training_in_progress = False
+                st.rerun()
+            else:
+                status_placeholder.error(f"❌ Erreur lors de l'entraînement (code: {process.returncode})")
+                st.session_state.training_in_progress = False
+                
+        except Exception as e:
+            status_placeholder.error(f"❌ Erreur: {str(e)}")
+            st.session_state.training_in_progress = False
+
+st.markdown("---")
+
+# Section 5: Évaluation
+st.header("🎯 5. Évaluation")
 
 # Check if metrics file exists
 metrics_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "metrics.json"

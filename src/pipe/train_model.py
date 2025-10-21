@@ -6,6 +6,11 @@ Orchestrates all services to train a blood cell classification model.
 
 import json
 from pathlib import Path
+import torch
+
+# Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
+torch.backends.mkldnn.enabled = False
+
 from src.services.yaml_loader import YamlLoader
 from src.services.data_transform_service import DataTransformService
 from src.services.dataset_service import DatasetService
