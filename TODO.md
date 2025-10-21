@@ -14,6 +14,7 @@
 - [x] Created orchestration script (train_model.py)
 - [x] Created comprehensive test suite
 - [x] Integrated backend services with Streamlit pages
+- [x] Added model retraining button in Modele interface
 
 ### Architecture Structure
 ```
