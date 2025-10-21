@@ -120,7 +120,36 @@ class InferenceService:
         model = ModelFactory.create_model(config, len(class_names), device)
         
         # Load checkpoint
-        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        
+        # Handle different checkpoint formats
+        if isinstance(checkpoint, dict):
+            state_dict = checkpoint
+        else:
+            # If checkpoint is the model itself
+            state_dict = checkpoint.state_dict() if hasattr(checkpoint, 'state_dict') else checkpoint
+        
+        # Check if keys need "model." prefix
+        first_key = next(iter(state_dict.keys()))
+        if not first_key.startswith('model.'):
+            # Add "model." prefix to all keys for compatibility with ResNetClassifier
+            state_dict = {f'model.{k}': v for k, v in state_dict.items()}
+        
+        try:
+            # Try to load with strict=True first
+            model.load_state_dict(state_dict, strict=True)
+        except RuntimeError as e:
+            # If strict loading fails, use the model's internal model directly
+            # This happens when checkpoint was saved from the inner model
+            if hasattr(model, 'model'):
+                # Remove "model." prefix for direct loading into inner model
+                inner_state_dict = {k.replace('model.', ''): v for k, v in state_dict.items()}
+                model.model.load_state_dict(inner_state_dict, strict=True)
+            else:
+                raise e
+        
+        # Ensure all model parameters are on the correct device
+        model = model.to(device)
         model.eval()
         
         # Create transform service

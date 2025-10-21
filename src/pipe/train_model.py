@@ -64,7 +64,7 @@ def main():
     # Setup checkpoint path
     checkpoint_dir = Path(loader.get_nested_value('paths.models.checkpoints', './models/checkpoints'))
     checkpoint_dir = loader._resolve_dir(checkpoint_dir)
-    checkpoint_path = checkpoint_dir / "best_model.pt"
+    checkpoint_path = checkpoint_dir / "best_model.pth"
     
     # Train model
     print("\n" + "="*50)

@@ -4,11 +4,13 @@ from pathlib import Path
 import sys
 import json
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Add project root to path for imports
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-from services.yaml_loader import YamlLoader
-from models.model_factory import ModelFactory
+from src.services.yaml_loader import YamlLoader
+from src.models.model_factory import ModelFactory
 
 st.title("🧠 Modèle de classification")
 

@@ -8,11 +8,14 @@ from PIL import Image, UnidentifiedImageError
 from pathlib import Path
 import random
 import plotly.express as px
+from src.services.yaml_loader import YamlLoader
+
+loader = YamlLoader()
 
 st.title("🔍 Exploration du dataset")
 
 # Chemin du dataset
-DATA_DIR = Path(r"C:\Dataset_projet_DS\PBC_dataset_normal_DIB\PBC_dataset_normal_DIB")
+DATA_DIR = loader.data_raw_dir / "bloodcells_dataset"
 
 if not DATA_DIR.exists():
     st.warning("⚠️ Dossier introuvable. Vérifie le chemin du dataset.")
@@ -49,7 +52,8 @@ else:
         # ---------------- Statistiques ----------------
         with tab1:
             st.subheader("📋 Statistiques globales")
-            st.write(f"Nombre total d'images : {df['Nombre d\'images'].sum()}")
+            total_images = df["Nombre d'images"].sum()
+            st.write(f"Nombre total d'images : {total_images}")
             st.write(f"Nombre de classes : {len(df)}")
             st.write(f"Classe la plus représentée : {df.index[0]} ({df.iloc[0,0]} images)")
             st.write(f"Classe la moins représentée : {df.index[-1]} ({df.iloc[-1,0]} images)")

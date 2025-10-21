@@ -30,8 +30,8 @@ with col1:
 
 with col2:
     st.image(
-        "assets/img_sang.jpg",
-        use_container_width=True
+        "src/assets/img_sang.jpg",
+        width="stretch"
     )
 
 st.markdown("---")

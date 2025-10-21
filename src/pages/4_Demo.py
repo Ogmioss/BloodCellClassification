@@ -4,12 +4,14 @@ import torch
 from pathlib import Path
 import sys
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Add project root to path for imports
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-from services.yaml_loader import YamlLoader
-from services.inference_service import InferenceService
-from models.model_factory import ModelFactory
+from src.services.yaml_loader import YamlLoader
+from src.services.inference_service import InferenceService
+from src.models.model_factory import ModelFactory
 
 st.title("🧪 Démonstration interactive avec PyTorch")
 st.markdown("Upload une image de frottis sanguin pour prédire le type de cellule.")
@@ -46,7 +48,7 @@ def load_inference_service(_config):
         # Load checkpoint
         yaml_loader = YamlLoader()
         checkpoint_dir = yaml_loader.get_nested_value('paths.models.checkpoints', './models/checkpoints')
-        checkpoint_path = Path(checkpoint_dir) / 'best_model.pt'
+        checkpoint_path = Path(checkpoint_dir) / 'best_model.pth'
         
         if not checkpoint_path.exists():
             return None, f"Checkpoint introuvable: {checkpoint_path}"
@@ -75,7 +77,7 @@ uploaded = st.file_uploader("Choisir une image (.jpg / .png)", type=["jpg", "jpe
 if uploaded and inference_service:
     # Load and display image
     img = Image.open(uploaded).convert("RGB")
-    st.image(img, caption="Image uploadée", use_column_width=False, width=300)
+    st.image(img, caption="Image uploadée", width=300)
 
     # Make prediction using InferenceService
     prediction = inference_service.predict_image(img)
