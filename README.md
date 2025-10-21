@@ -1,7 +1,50 @@
 # BloodCellClassification
 Application pour classer les photos d'imagerie médicale de cellules sanguines par Machine Learning
 
-## Installation
+## 🐳 Démarrage rapide avec Docker (Recommandé)
+
+### Prérequis
+- Docker
+- Docker Compose
+
+### Lancement de l'application
+
+```bash
+# Construire et démarrer l'application
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter l'application
+docker-compose down
+```
+
+L'application sera accessible à l'adresse : **http://localhost:8501**
+
+### Commandes Docker utiles
+
+```bash
+# Reconstruire l'image après modification du code
+docker-compose up -d --build
+
+# Accéder au conteneur
+docker-compose exec bloodcell-app bash
+
+# Voir l'état du conteneur
+docker-compose ps
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+## 💻 Installation locale (Alternative)
+
+### Prérequis
+- Python 3.11+
+- uv package manager
+
+### Installation
 
 ```bash
 # Installer le projet en mode éditable (requis pour les imports)
@@ -22,6 +65,15 @@ This high-quality labelled dataset may be used to train and test machine learnin
 
 ## Entraînement du modèle
 
+### Avec Docker
+
+```bash
+# Entraîner le modèle dans le conteneur
+docker-compose exec bloodcell-app uv run train-model
+```
+
+### En local
+
 ```bash
 # Recommandé avec uv
 uv run train-model
@@ -36,6 +88,11 @@ python3 -m src.pipe.train_model
 scripts/predict.py
 
 ## Interface utilisateur
+
+### Avec Docker
+L'interface est automatiquement lancée avec `docker-compose up -d`
+
+### En local
 
 ```bash
 # Avec uv (recommandé)

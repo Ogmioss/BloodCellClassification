@@ -7,6 +7,9 @@ paths:
         raw: ./data/raw
     models:
         checkpoints: ./models/checkpoints
+    runtime:
+        pid_file: ./streamlit.pid
+        log_file: ./logs/streamlit.log
         
 training:
     batch_size: 32
