@@ -15,6 +15,7 @@
 - [x] Created comprehensive test suite
 - [x] Integrated backend services with Streamlit pages
 - [x] Added model retraining button in Modele interface
+- [x] Rédigé la documentation de `src/` dans `docs/src_documentation.md`
 
 ### Architecture Structure
 ```
