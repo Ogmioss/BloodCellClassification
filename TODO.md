@@ -10,8 +10,10 @@
 - [x] Implemented model factory pattern (Open/Closed, Dependency Inversion)
 - [x] Implemented training service (Single Responsibility)
 - [x] Implemented evaluation service (Single Responsibility)
+- [x] Implemented inference service (Single Responsibility)
 - [x] Created orchestration script (train_model.py)
 - [x] Created comprehensive test suite
+- [x] Integrated backend services with Streamlit pages
 
 ### Architecture Structure
 ```
@@ -21,18 +23,24 @@ src/
 │   ├── dataset_service.py           # Handles dataset loading & splitting
 │   ├── training_service.py          # Handles model training
 │   ├── evaluation_service.py        # Handles model evaluation
+│   ├── inference_service.py         # Handles model inference
 │   └── yaml_loader.py               # Configuration management
 ├── models/
 │   ├── base_classifier.py           # Abstract base class (Interface Segregation)
 │   ├── resnet_classifier.py         # ResNet implementation (Open/Closed)
 │   └── model_factory.py             # Model creation factory (Dependency Inversion)
-└── train_model.py                   # Main training script
+├── pages/
+│   ├── 3_Modele.py                  # Model info & metrics visualization
+│   └── 4_Demo.py                    # Interactive demo using InferenceService
+└── pipe/
+    └── train_model.py               # Main training script
 
 tests/
 ├── test_data_transform_service.py
 ├── test_model_factory.py
 ├── test_resnet_classifier.py
-└── test_evaluation_service.py
+├── test_evaluation_service.py
+└── test_inference_service.py
 ```
 
 ## Usage
@@ -43,7 +51,7 @@ tests/
 uv run train-model
 
 # Or as a module
-python -m src.train_model
+python3 -m src.pipe.train_model
 ```
 
 ### Run Tests

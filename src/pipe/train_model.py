@@ -4,6 +4,7 @@ Main Training Script
 Orchestrates all services to train a blood cell classification model.
 """
 
+import json
 from pathlib import Path
 from src.services.yaml_loader import YamlLoader
 from src.services.data_transform_service import DataTransformService
@@ -63,7 +64,7 @@ def main():
     # Setup checkpoint path
     checkpoint_dir = Path(loader.get_nested_value('paths.models.checkpoints', './models/checkpoints'))
     checkpoint_dir = loader._resolve_dir(checkpoint_dir)
-    checkpoint_path = checkpoint_dir / "best_model.pth"
+    checkpoint_path = checkpoint_dir / "best_model.pt"
     
     # Train model
     print("\n" + "="*50)
@@ -95,6 +96,21 @@ def main():
     print("="*50)
     print(f"Test Accuracy: {test_results['accuracy']:.4f}")
     print(f"Model saved to: {checkpoint_path}")
+    
+    # Save metrics to JSON file
+    metrics_path = checkpoint_dir / "metrics.json"
+    metrics_data = {
+        'best_val_acc': training_metrics['best_val_acc'],
+        'final_train_loss': training_metrics['final_train_loss'],
+        'final_train_acc': training_metrics['final_train_acc'],
+        'accuracy': test_results['accuracy'],
+        'class_names': class_names
+    }
+    
+    with open(metrics_path, 'w') as f:
+        json.dump(metrics_data, f, indent=2)
+    
+    print(f"Metrics saved to: {metrics_path}")
     
     return {
         'model': model,
