@@ -59,7 +59,13 @@ class InferenceService:
         """
         # Transform image
         transform = self.transform_service.get_val_test_transform()
-        img_tensor = transform(image).unsqueeze(0).to(self.device)
+        img_tensor = transform(image).unsqueeze(0)
+        
+        # Ensure tensor is on the correct device
+        img_tensor = img_tensor.to(self.device)
+        
+        # Ensure model is on the correct device (defensive check)
+        self.model = self.model.to(self.device)
         
         # Make prediction
         with torch.no_grad():
@@ -119,8 +125,8 @@ class InferenceService:
         # Create model
         model = ModelFactory.create_model(config, len(class_names), device)
         
-        # Load checkpoint
-        checkpoint = torch.load(checkpoint_path, map_location=device)
+        # Load checkpoint - force to CPU first to avoid MPS issues
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
         
         # Handle different checkpoint formats
         if isinstance(checkpoint, dict):
@@ -128,6 +134,9 @@ class InferenceService:
         else:
             # If checkpoint is the model itself
             state_dict = checkpoint.state_dict() if hasattr(checkpoint, 'state_dict') else checkpoint
+        
+        # Ensure all tensors in state_dict are on CPU before loading
+        state_dict = {k: v.cpu() if isinstance(v, torch.Tensor) else v for k, v in state_dict.items()}
         
         # Check if keys need "model." prefix
         first_key = next(iter(state_dict.keys()))

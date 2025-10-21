@@ -3,6 +3,10 @@ from PIL import Image
 import torch
 from pathlib import Path
 import sys
+import os
+
+# Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
+torch.backends.mkldnn.enabled = False
 
 # Add project root to path for imports
 project_root = Path(__file__).resolve().parents[2]
@@ -39,10 +43,10 @@ if config is None:
 
 # Charger le service d'inférence
 @st.cache_resource
-def load_inference_service(_config):
+def load_inference_service(_config, device_str: str):
     try:
-        # Get device
-        device = ModelFactory.get_device()
+        # Convert device string to torch.device
+        device = torch.device(device_str)
         st.info(f"Device utilisé: {device}")
         
         # Load checkpoint
@@ -65,7 +69,9 @@ def load_inference_service(_config):
     except Exception as e:
         return None, str(e)
 
-inference_service, error = load_inference_service(config)
+# Get device and pass as string to enable cache invalidation
+device = ModelFactory.get_device()
+inference_service, error = load_inference_service(config, str(device))
 
 if error:
     st.error(f"Erreur lors du chargement du modèle: {error}")

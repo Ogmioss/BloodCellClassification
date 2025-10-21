@@ -4,6 +4,9 @@ from pathlib import Path
 import sys
 import json
 
+# Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
+torch.backends.mkldnn.enabled = False
+
 # Add project root to path for imports
 project_root = Path(__file__).resolve().parents[2]
 if str(project_root) not in sys.path:
@@ -91,9 +94,9 @@ with st.expander("🔍 Voir les classes"):
 
 # Load model info
 @st.cache_resource
-def get_model_info(_config):
+def get_model_info(_config, device_str: str):
     try:
-        device = ModelFactory.get_device()
+        device = torch.device(device_str)
         model = ModelFactory.create_model(_config, len(CLASS_NAMES), device)
         
         # Count parameters
@@ -108,7 +111,8 @@ def get_model_info(_config):
     except Exception as e:
         return {'error': str(e)}
 
-model_info = get_model_info(config)
+device = ModelFactory.get_device()
+model_info = get_model_info(config, str(device))
 
 if 'error' not in model_info:
     col1, col2, col3 = st.columns(3)
