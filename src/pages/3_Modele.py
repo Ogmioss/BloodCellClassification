@@ -213,31 +213,78 @@ st.markdown("---")
 # Section 5: Évaluation
 st.header("🎯 5. Évaluation")
 
-# Check if metrics file exists
-metrics_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "metrics.json"
+# Load metrics by default from checkpoints directory
+@st.cache_data
+def load_evaluation_metrics():
+    """Load evaluation metrics from the checkpoints directory."""
+    metrics_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "metrics.json"
+    
+    if metrics_path.exists():
+        try:
+            with open(metrics_path, 'r') as f:
+                return json.load(f), None
+        except Exception as e:
+            return None, f"Erreur lors du chargement des métriques: {e}"
+    else:
+        return None, "Aucun fichier de métriques trouvé"
 
-if metrics_path.exists():
-    try:
-        with open(metrics_path, 'r') as f:
-            metrics = json.load(f)
-        
-        st.success("✅ Métriques chargées depuis le fichier")
-        
-        # Display metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Accuracy", f"{metrics.get('accuracy', 0):.2%}")
-        with col2:
-            st.metric("Best Val Acc", f"{metrics.get('best_val_acc', 0):.2%}")
-        with col3:
-            st.metric("Final Train Acc", f"{metrics.get('final_train_acc', 0):.2%}")
-        
+# Check for saved model
+checkpoint_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "best_model.pth"
+model_exists = checkpoint_path.exists()
+
+if model_exists:
+    import os
+    from datetime import datetime
+    
+    # Get model file info
+    model_size = os.path.getsize(checkpoint_path) / (1024 * 1024)  # Size in MB
+    model_mtime = datetime.fromtimestamp(os.path.getmtime(checkpoint_path))
+    
+    st.info(f"📦 Modèle trouvé: `best_model.pth` ({model_size:.1f} MB) - Dernière modification: {model_mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+
+# Load metrics automatically
+metrics, error = load_evaluation_metrics()
+
+if metrics is not None:
+    st.success("✅ Métriques d'évaluation chargées depuis le modèle entraîné")
+    
+    # Display main metrics in prominent cards
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("🎯 Test Accuracy", f"{metrics.get('accuracy', 0):.2%}")
+    with col2:
+        st.metric("📈 Best Val Accuracy", f"{metrics.get('best_val_acc', 0):.2%}")
+    with col3:
+        st.metric("🏋️ Final Train Accuracy", f"{metrics.get('final_train_acc', 0):.2%}")
+    
+    # Additional metrics details
+    with st.expander("📊 Détails complets des métriques", expanded=False):
         st.json(metrics)
-    except Exception as e:
-        st.error(f"Erreur lors du chargement des métriques: {e}")
+        
+        # Display training loss if available
+        if 'final_train_loss' in metrics:
+            st.write(f"**Final Training Loss:** {metrics['final_train_loss']:.4f}")
+        
+        # Display class names
+        if 'class_names' in metrics:
+            st.write("**Classes détectées:**")
+            cols = st.columns(4)
+            for i, class_name in enumerate(metrics['class_names']):
+                with cols[i % 4]:
+                    st.write(f"• {class_name}")
+elif model_exists:
+    st.warning(f"⚠️ {error}")
+    st.info("💡 Le modèle existe mais les métriques n'ont pas été sauvegardées. Ré-entraînez le modèle pour générer les métriques.")
 else:
-    st.warning("⚠️ Aucun fichier de métriques trouvé. Entraînez d'abord le modèle avec `train_model.py`.")
-    st.info("💡 Après entraînement, cette section affichera: accuracy, précision, rappel, F1-score, et matrice de confusion.")
+    st.warning(f"⚠️ {error}")
+    st.info("💡 Entraînez d'abord le modèle en cliquant sur le bouton '🚀 Lancer l'entraînement' ci-dessus.")
+    st.markdown("""
+    **Après entraînement, cette section affichera:**
+    - Accuracy sur le test set
+    - Meilleure accuracy de validation
+    - Accuracy finale d'entraînement
+    - Loss finale d'entraînement
+    """)
 
 st.markdown("---")
 st.caption("🛠️ Cette page utilise les services backend: ModelFactory, DataTransformService, YamlLoader")

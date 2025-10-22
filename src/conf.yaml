@@ -6,6 +6,7 @@ paths:
         processed: ./data/processed
         raw: ./data/raw
     models:
+        root: ./models
         checkpoints: ./models/checkpoints
     runtime:
         pid_file: ./streamlit.pid
@@ -16,7 +17,7 @@ training:
     img_size: 224
     epochs: 20
     learning_rate: 0.001
-    num_workers: 2
+    num_workers: 0
     seed: 42
     
     # Data splits

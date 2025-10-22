@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets
 from torchvision.transforms import Compose
 from sklearn.utils.class_weight import compute_class_weight
-
+from sklearn.model_selection import train_test_split
 
 class DatasetService:
     """
@@ -118,7 +118,8 @@ class DatasetService:
         dataset: datasets.ImageFolder | Subset
     ) -> Tuple[Subset, Subset, Subset]:
         """
-        Split dataset into train, validation, and test sets.
+        Split dataset into train, validation, and test sets using stratified split.
+        Preserves class proportions across all splits to handle class imbalance.
         
         Args:
             dataset: Dataset to split
@@ -126,15 +127,39 @@ class DatasetService:
         Returns:
             Tuple of (train_dataset, val_dataset, test_dataset)
         """
-        n_train = int(self.train_split * len(dataset))
-        n_val = int(self.val_split * len(dataset))
-        n_test = len(dataset) - n_train - n_val
+        # Extract labels from dataset
+        if isinstance(dataset, Subset):
+            labels = np.array([dataset.dataset.targets[i] for i in dataset.indices])
+            base_dataset = dataset.dataset
+            base_indices = np.array(dataset.indices)
+        else:
+            labels = np.array(dataset.targets)
+            base_dataset = dataset
+            base_indices = np.arange(len(dataset))
         
-        train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
-            dataset, 
-            [n_train, n_val, n_test],
-            generator=torch.Generator().manual_seed(self.seed)
+        # First split: train vs (val + test)
+        train_idx, temp_idx = train_test_split(
+            base_indices,
+            train_size=self.train_split,
+            stratify=labels,
+            random_state=self.seed
         )
+        
+        # Second split: val vs test (relative to remaining data)
+        val_ratio = self.val_split / (self.val_split + (1.0 - self.train_split - self.val_split))
+        temp_labels = labels[np.isin(base_indices, temp_idx)]
+        
+        val_idx, test_idx = train_test_split(
+            temp_idx,
+            train_size=val_ratio,
+            stratify=temp_labels,
+            random_state=self.seed
+        )
+        
+        # Create Subset objects
+        train_dataset = Subset(base_dataset, train_idx.tolist())
+        val_dataset = Subset(base_dataset, val_idx.tolist())
+        test_dataset = Subset(base_dataset, test_idx.tolist())
         
         return train_dataset, val_dataset, test_dataset
     
