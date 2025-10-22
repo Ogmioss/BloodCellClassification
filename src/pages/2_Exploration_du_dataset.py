@@ -9,6 +9,7 @@ from pathlib import Path
 import random
 import plotly.express as px
 from src.services.yaml_loader import YamlLoader
+from src.utils.spectral_visualization import visualize_cell_types_distribution
 
 loader = YamlLoader()
 
@@ -47,7 +48,7 @@ else:
         df = df.sort_values(by='Nombre d\'images', ascending=False)
 
         # Onglets Streamlit
-        tab1, tab2, tab3 = st.tabs(["📊 Statistiques", "📈 Distribution", "🖼️ Exemples d'images"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Statistiques", "📈 Distribution", "🖼️ Exemples d'images", "🌈 Visualisation spectrale"])
 
         # ---------------- Statistiques ----------------
         with tab1:
@@ -116,6 +117,45 @@ else:
                         st.warning(f"Impossible d'afficher l'image {sample_img.name}")
             else:
                 st.info("Aucune image trouvée dans les sous-dossiers.")
+
+        # ---------------- Visualisation spectrale ----------------
+        with tab4:
+            st.subheader("Distribution RGB par type de cellule")
+            st.markdown("""
+            Cette visualisation montre les histogrammes des intensités des couleurs (rouge, vert, bleu) 
+            pour chaque classe de cellules. Les différents pics correspondent généralement à deux parties :
+            - La cellule elle-même
+            - Le fond de l'image
+            
+            Les statistiques μ(R), μ(G), μ(B) représentent les moyennes des intensités pour chaque canal de couleur.
+            """)
+            
+            # Bouton pour générer la visualisation
+            if st.button("Générer la visualisation spectrale", key="spectral_viz"):
+                with st.spinner("Génération de la visualisation en cours... Cela peut prendre quelques instants."):
+                    try:
+                        # Obtenir la liste des types de cellules
+                        cell_types = sorted([d.name for d in DATA_DIR.iterdir() if d.is_dir()])
+                        
+                        # Générer la figure
+                        fig = visualize_cell_types_distribution(DATA_DIR, cell_types)
+                        
+                        # Afficher la figure
+                        st.pyplot(fig)
+                        
+                        st.success("✅ Visualisation générée avec succès !")
+                        
+                        # Informations supplémentaires
+                        st.info("""
+                        **Interprétation :**
+                        - Les courbes montrent la distribution des intensités de pixels pour chaque canal RGB
+                        - Les pics similaires entre classes indiquent des caractéristiques colorimétriques communes
+                        - Les différences de distribution peuvent aider à distinguer certains types de cellules
+                        """)
+                    except Exception as e:
+                        st.error(f"Erreur lors de la génération de la visualisation : {str(e)}")
+            else:
+                st.info("👆 Cliquez sur le bouton ci-dessus pour générer la visualisation spectrale.")
 
     else:
         st.info("Aucun sous-dossier contenant des images trouvé.")
