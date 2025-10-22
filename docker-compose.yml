@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  bloodcell-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bloodcell-classification
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount data directory for persistence (aligns with load_dataset.sh structure)
+      - ./src/data:/app/src/data
+      # Mount models directory for persistence
+      - ./models:/app/models
+      # Mount logs directory for persistence
+      - ./logs:/app/logs
+      # Mount Kaggle credentials (optional, already copied during build)
+      - ./kaggle.json:/root/.kaggle/kaggle.json:ro
+      # Optional: mount source for development (comment out for production)
+      # - ./src:/app/src
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

@@ -1,8 +1,78 @@
 # BloodCellClassification
 Application pour classer les photos d'imagerie médicale de cellules sanguines par Machine Learning
 
+## 🐳 Démarrage rapide avec Docker (Recommandé)
+
+### Prérequis
+- Docker
+- Docker Compose
+- **Fichier `kaggle.json`** avec vos credentials Kaggle (voir section Configuration Kaggle)
+
+### Configuration Kaggle
+
+Le dataset est téléchargé automatiquement depuis Kaggle lors du build Docker. Vous devez fournir vos credentials :
+
+1. **Obtenir vos credentials Kaggle :**
+   - Aller sur https://www.kaggle.com/
+   - Profil → Account → API → "Create New API Token"
+   - Télécharger le fichier `kaggle.json`
+
+2. **Placer le fichier à la racine du projet :**
+   ```bash
+   # Le fichier doit être à la racine : ./kaggle.json
+   # Format : {"username":"votre_username","key":"votre_api_key"}
+   ```
+
+📖 **Documentation complète :** Voir [DOCKER_DATASET_SETUP.md](./DOCKER_DATASET_SETUP.md)
+
+### Lancement de l'application
+
+```bash
+# Construire et démarrer l'application
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter l'application
+docker-compose down
+```
+
+L'application sera accessible à l'adresse : **http://localhost:8501**
+
+### Commandes Docker utiles
+
+```bash
+# Reconstruire l'image après modification du code
+docker-compose up -d --build
+
+# Accéder au conteneur
+docker-compose exec bloodcell-app bash
+
+# Voir l'état du conteneur
+docker-compose ps
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+## 💻 Installation locale (Alternative)
+
+### Prérequis
+- Python 3.11+
+- uv package manager
+
+### Installation
+
+```bash
+# Installer le projet en mode éditable (requis pour les imports)
+uv pip install -e .
+```
+
 ## Chargement jeu de données
+```bash
 ./scripts/load_dataset.sh
+```
 
 
 ### About Dataset
@@ -12,10 +82,40 @@ The dataset contains a total of 17,092 images of individual normal cells, which 
 This high-quality labelled dataset may be used to train and test machine learning and deep learning models to recognize different types of normal peripheral blood cells. To our knowledge, this is the first publicly available set with large numbers of normal peripheral blood cells, so that it is expected to be a canonical dataset for model benchmarking.
 
 ## Entraînement du modèle
-scripts/train_model.py
+
+### Avec Docker
+
+```bash
+# Entraîner le modèle dans le conteneur
+docker-compose exec bloodcell-app uv run train-model
+```
+
+### En local
+
+```bash
+# Recommandé avec uv
+uv run train-model
+```
+
+Ou directement:
+```bash
+python3 -m src.pipe.train_model
+```
 
 ## Prédiction
 scripts/predict.py
 
 ## Interface utilisateur
-app/app.py
+
+### Avec Docker
+L'interface est automatiquement lancée avec `docker-compose up -d`
+
+### En local
+
+```bash
+# Avec uv (recommandé)
+uv run streamlit run src/app.py
+
+# Ou avec le script de lancement
+./start.sh
+```

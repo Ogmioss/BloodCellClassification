@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bloodcellclassification"
+version = "0.1.0"
+description = "Blood cell classification using deep learning"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ipykernel>=7.0.1",
+    "kaggle>=1.7.4.5",
+    "matplotlib>=3.10.7",
+    "opencv-python>=4.12.0.88",
+    "pillow>=10.0.0",
+    "plotly>=5.18.0",
+    "pyyaml>=6.0.3",
+    "scikit-image>=0.25.2",
+    "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
+    "streamlit>=1.50.0",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "tqdm>=4.67.1",
+]
+
+[project.scripts]
+train-model = "src.pipe.train_model:main"
+
+[tool.setuptools]
+packages = ["src", "src.services", "src.models", "src.pipe", "src.pages"]
+
+[tool.setuptools.package-data]
+src = ["conf.yaml", "assets/*"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]

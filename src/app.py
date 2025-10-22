@@ -1,4 +1,9 @@
 import streamlit as st
+import torch
+
+# Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
+# Disable oneDNN (MKL-DNN) backend
+torch.backends.mkldnn.enabled = False
 
 # Configuration de la page
 st.set_page_config(page_title="🩸 Blood Cells Classification", layout="wide")
@@ -30,8 +35,8 @@ with col1:
 
 with col2:
     st.image(
-        "assets/img_sang.jpg",
-        use_container_width=True
+        "src/assets/img_sang.jpg",
+        width="stretch"
     )
 
 st.markdown("---")
