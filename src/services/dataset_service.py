@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, List
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 from torchvision import datasets
 from torchvision.transforms import Compose
 from sklearn.utils.class_weight import compute_class_weight
@@ -78,11 +78,14 @@ class DatasetService:
         val_dataset.dataset.transform = val_test_transform
         test_dataset.dataset.transform = val_test_transform
         
+        # Create weighted sampler for balanced training
+        train_sampler = self._create_weighted_sampler(train_dataset)
+        
         # Create data loaders
         train_loader = DataLoader(
             train_dataset, 
             batch_size=self.batch_size, 
-            shuffle=True,
+            sampler=train_sampler,  # Use sampler instead of shuffle
             num_workers=self.num_workers
         )
         val_loader = DataLoader(
@@ -119,7 +122,7 @@ class DatasetService:
     ) -> Tuple[Subset, Subset, Subset]:
         """
         Split dataset into train, validation, and test sets using stratified split.
-        Preserves class proportions across all splits to handle class imbalance.
+        Preserves class proportions across all splits.
         
         Args:
             dataset: Dataset to split
@@ -127,28 +130,23 @@ class DatasetService:
         Returns:
             Tuple of (train_dataset, val_dataset, test_dataset)
         """
-        # Extract labels from dataset
-        if isinstance(dataset, Subset):
-            labels = np.array([dataset.dataset.targets[i] for i in dataset.indices])
-            base_dataset = dataset.dataset
-            base_indices = np.array(dataset.indices)
-        else:
-            labels = np.array(dataset.targets)
-            base_dataset = dataset
-            base_indices = np.arange(len(dataset))
+        # Get indices and labels
+        indices = list(range(len(dataset)))
+        labels = [dataset[i][1] for i in indices]
         
-        # First split: train vs (val + test)
+        # First split: train vs (val + test) - stratified
         train_idx, temp_idx = train_test_split(
-            base_indices,
+            indices,
             train_size=self.train_split,
             stratify=labels,
             random_state=self.seed
         )
         
-        # Second split: val vs test (relative to remaining data)
-        val_ratio = self.val_split / (self.val_split + (1.0 - self.train_split - self.val_split))
-        temp_labels = labels[np.isin(base_indices, temp_idx)]
+        # Get labels for temp set
+        temp_labels = [labels[i] for i in temp_idx]
         
+        # Second split: val vs test - stratified
+        val_ratio = self.val_split / (1.0 - self.train_split)
         val_idx, test_idx = train_test_split(
             temp_idx,
             train_size=val_ratio,
@@ -157,11 +155,43 @@ class DatasetService:
         )
         
         # Create Subset objects
-        train_dataset = Subset(base_dataset, train_idx.tolist())
-        val_dataset = Subset(base_dataset, val_idx.tolist())
-        test_dataset = Subset(base_dataset, test_idx.tolist())
+        train_dataset = Subset(dataset, train_idx)
+        val_dataset = Subset(dataset, val_idx)
+        test_dataset = Subset(dataset, test_idx)
         
         return train_dataset, val_dataset, test_dataset
+    
+    def _create_weighted_sampler(self, train_dataset: Subset) -> WeightedRandomSampler:
+        """
+        Create a weighted sampler to balance classes during training.
+        This ensures each class is sampled equally regardless of original distribution.
+        
+        Args:
+            train_dataset: Training dataset subset
+            
+        Returns:
+            WeightedRandomSampler for balanced sampling
+        """
+        # Get all labels from training set
+        labels = [train_dataset[i][1] for i in range(len(train_dataset))]
+        
+        # Count samples per class
+        class_counts = np.bincount(labels)
+        
+        # Compute weight for each class (inverse frequency)
+        class_weights = 1.0 / class_counts
+        
+        # Assign weight to each sample based on its class
+        sample_weights = [class_weights[label] for label in labels]
+        
+        # Create sampler
+        sampler = WeightedRandomSampler(
+            weights=sample_weights,
+            num_samples=len(sample_weights),
+            replacement=True  # Allow sampling with replacement for balancing
+        )
+        
+        return sampler
     
     def compute_class_weights(self, train_dataset: Subset) -> torch.Tensor:
         """
