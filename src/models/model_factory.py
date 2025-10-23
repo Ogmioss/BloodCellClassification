@@ -10,6 +10,8 @@ import torch
 
 from src.models.base_classifier import BaseClassifier
 from src.models.resnet_classifier import ResNetClassifier
+from src.models.cnn_classifier import CNNClassifier
+
 
 
 class ModelFactory:
@@ -48,8 +50,12 @@ class ModelFactory:
                 pretrained=pretrained,
                 pretrained_weights=pretrained_weights if pretrained else None
             )
+        elif model_name.startswith('cnn'):
+            model = CNNClassifier(num_classes=num_classes)
         else:
             raise ValueError(f"Unsupported model: {model_name}")
+                # else:
+        #     raise ValueError(f"Unsupported model: {model_name}")
         
         # Move model to device
         return model.to(device)
