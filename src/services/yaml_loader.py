@@ -16,10 +16,11 @@ class YamlLoader:
         Args:
             config_path: Chemin vers le fichier de configuration YAML. 
                         Par défaut: conf.yaml à la racine du projet.
-            project_root: Racine du projet. Par défaut: parent du dossier services.
+            project_root: Racine du projet. Par défaut: deux niveaux au-dessus du fichier yaml_loader.py.
         """
         if project_root is None:
-            self.project_root = Path(__file__).resolve().parents[1]
+            # yaml_loader.py is in src/services/, so project root is 2 levels up
+            self.project_root = Path(__file__).resolve().parents[2]
         else:
             self.project_root = Path(project_root).resolve()
             
@@ -109,17 +110,17 @@ class YamlLoader:
     @property
     def data_dir(self) -> Path:
         """Retourne le chemin du dossier data."""
-        return self.get_dir("paths.data.root", "./data")
+        return self.get_dir("paths.data.root", "./src/data")
 
     @property
     def data_processed_dir(self) -> Path:
         """Retourne le chemin du dossier data/processed."""
-        return self.get_dir("paths.data.processed.root", "./data/processed")
+        return self.get_dir("paths.data.processed", "./src/data/processed")
 
     @property
     def data_raw_dir(self) -> Path:
         """Retourne le chemin du dossier data/raw."""
-        return self.get_dir("paths.data.raw.root", "./data/raw")
+        return self.get_dir("paths.data.raw", "./src/data/raw")
 
     @property
     def notebooks_dir(self) -> Path:

@@ -2,6 +2,18 @@
 
 ## Completed ✅
 
+### Model Evaluation & Metrics (Oct 23, 2024)
+- [x] Fixed `YamlLoader` project_root path (was pointing to `src/` instead of project root)
+- [x] Created `evaluate_model.py` script to evaluate existing models and generate metrics
+- [x] Added `evaluate-model` entry point in `pyproject.toml`
+- [x] Fixed checkpoint loading logic to handle models saved without 'model.' prefix
+- [x] Generated `metrics.json` file with performance metrics (72.4% val accuracy, 71.6% test accuracy)
+- [x] Updated `conf.yaml` paths to reflect actual project structure
+- [x] Added confusion matrix computation in `EvaluationService`
+- [x] Integrated confusion matrix in both `train_model.py` and `evaluate_model.py`
+- [x] Added confusion matrix visualization in Streamlit page using Plotly heatmap
+- [x] Added per-class accuracy table in Streamlit interface
+
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture
 - [x] Created configuration-driven system (conf.yaml)
@@ -16,6 +28,15 @@
 - [x] Integrated backend services with Streamlit pages
 - [x] Added model retraining button in Modele interface
 - [x] Rédigé la documentation de `src/` dans `docs/src_documentation.md`
+
+### Dataset Exploration Enhancement (Oct 23, 2024)
+- [x] Created `RGBAnalyzer` for RGB distribution analysis with KDE
+- [x] Created `RGBChartGenerator` for Plotly RGB distribution charts
+- [x] Created `ImageSimilarityCalculator` for cosine similarity and mean images
+- [x] Added new tab "🎨 Couleurs RGB" with RGB distributions by class
+- [x] Enhanced "🖼️ Exemples d'images" tab with mean images per class
+- [x] Added cosine similarity matrix between classes (real images)
+- [x] Integrated all new visualizations in Streamlit interface
 
 ### Application Orchestration
 - [x] Created `start.sh` script with PID tracking and logging
@@ -44,11 +65,23 @@ src/
 │   ├── base_classifier.py           # Abstract base class (Interface Segregation)
 │   ├── resnet_classifier.py         # ResNet implementation (Open/Closed)
 │   └── model_factory.py             # Model creation factory (Dependency Inversion)
+├── utils/
+│   ├── chart_generator.py           # General chart generation
+│   ├── dataset_analyzer.py          # Dataset analysis utilities
+│   ├── image_loader.py              # Image loading utilities
+│   ├── image_similarity.py          # Cosine similarity & mean images
+│   ├── rgb_analyzer.py              # RGB distribution analysis (KDE)
+│   ├── rgb_chart_generator.py       # RGB distribution charts (Plotly)
+│   ├── spectral_visualization.py    # Spectral visualization
+│   ├── statistics_calculator.py     # Statistical calculations
+│   └── streamlit_renderers.py       # Streamlit rendering components
 ├── pages/
+│   ├── 2_Exploration_du_dataset.py  # Dataset exploration with visualizations
 │   ├── 3_Modele.py                  # Model info & metrics visualization
 │   └── 4_Demo.py                    # Interactive demo using InferenceService
 └── pipe/
-    └── train_model.py               # Main training script
+    ├── train_model.py               # Main training script
+    └── evaluate_model.py            # Model evaluation script
 
 scripts/
 ├── start.sh                         # Launch Streamlit with PID tracking
@@ -117,8 +150,8 @@ All parameters centralized in `src/conf.yaml`:
 - [ ] Add progress visualization during training
 
 ### Evaluation & Analysis
-- [ ] Generate confusion matrix visualization
-- [ ] Implement per-class metrics reporting
+- [x] Generate confusion matrix visualization
+- [x] Implement per-class metrics reporting
 - [ ] Add ROC curves and precision-recall curves
 - [ ] Create model interpretability tools (Grad-CAM)
 
