@@ -29,6 +29,15 @@
 - [x] Added model retraining button in Modele interface
 - [x] Rédigé la documentation de `src/` dans `docs/src_documentation.md`
 
+### Dataset Exploration Enhancement (Oct 23, 2024)
+- [x] Created `RGBAnalyzer` for RGB distribution analysis with KDE
+- [x] Created `RGBChartGenerator` for Plotly RGB distribution charts
+- [x] Created `ImageSimilarityCalculator` for cosine similarity and mean images
+- [x] Added new tab "🎨 Couleurs RGB" with RGB distributions by class
+- [x] Enhanced "🖼️ Exemples d'images" tab with mean images per class
+- [x] Added cosine similarity matrix between classes (real images)
+- [x] Integrated all new visualizations in Streamlit interface
+
 ### Application Orchestration
 - [x] Created `start.sh` script with PID tracking and logging
 - [x] Created `stop.sh` script for graceful shutdown
@@ -56,11 +65,23 @@ src/
 │   ├── base_classifier.py           # Abstract base class (Interface Segregation)
 │   ├── resnet_classifier.py         # ResNet implementation (Open/Closed)
 │   └── model_factory.py             # Model creation factory (Dependency Inversion)
+├── utils/
+│   ├── chart_generator.py           # General chart generation
+│   ├── dataset_analyzer.py          # Dataset analysis utilities
+│   ├── image_loader.py              # Image loading utilities
+│   ├── image_similarity.py          # Cosine similarity & mean images
+│   ├── rgb_analyzer.py              # RGB distribution analysis (KDE)
+│   ├── rgb_chart_generator.py       # RGB distribution charts (Plotly)
+│   ├── spectral_visualization.py    # Spectral visualization
+│   ├── statistics_calculator.py     # Statistical calculations
+│   └── streamlit_renderers.py       # Streamlit rendering components
 ├── pages/
+│   ├── 2_Exploration_du_dataset.py  # Dataset exploration with visualizations
 │   ├── 3_Modele.py                  # Model info & metrics visualization
 │   └── 4_Demo.py                    # Interactive demo using InferenceService
 └── pipe/
-    └── train_model.py               # Main training script
+    ├── train_model.py               # Main training script
+    └── evaluate_model.py            # Model evaluation script
 
 scripts/
 ├── start.sh                         # Launch Streamlit with PID tracking
