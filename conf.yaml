@@ -2,9 +2,9 @@ paths:
     src:
         root: ./src
     data:
-        root: ./data
-        processed: ./data/processed
-        raw: ./data/raw
+        root: ./src/data
+        processed: ./src/data/processed
+        raw: ./src/data/raw
     models:
         root: ./models
         checkpoints: ./models/checkpoints
