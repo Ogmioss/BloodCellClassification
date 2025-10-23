@@ -6,10 +6,16 @@ import random
 import streamlit as st
 import pandas as pd
 from PIL import Image, UnidentifiedImageError
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from src.utils.statistics_calculator import StatisticsCalculator
 from src.utils.chart_generator import ChartGenerator
 from src.utils.spectral_visualization import visualize_cell_types_distribution
+from src.utils.rgb_analyzer import RGBAnalyzer
+from src.utils.rgb_chart_generator import RGBChartGenerator
+from src.utils.image_similarity import ImageSimilarityCalculator
 
 
 class StreamlitRenderer:
@@ -29,6 +35,9 @@ class StreamlitRenderer:
         """
         self.stats_calculator = stats_calculator
         self.chart_generator = chart_generator
+        self.rgb_analyzer = RGBAnalyzer()
+        self.rgb_chart_generator = RGBChartGenerator()
+        self.similarity_calculator = ImageSimilarityCalculator()
     
     def render_statistics_tab(
         self, 
@@ -215,3 +224,121 @@ class StreamlitRenderer:
                     st.error(f"Erreur lors de la génération de la visualisation : {str(e)}")
         else:
             st.info("👆 Cliquez sur le bouton ci-dessus pour générer la visualisation spectrale.")
+    
+    def render_rgb_distribution_tab(
+        self, 
+        class_images: Dict[str, List[Path]]
+    ) -> None:
+        """
+        Affiche l'onglet des distributions RGB par classe.
+        
+        Args:
+            class_images: Dictionnaire {classe: liste_chemins}
+        """
+        st.subheader("🎨 Distribution des canaux RGB par type de cellule")
+        
+        cell_types = sorted(class_images.keys())
+        if not cell_types:
+            st.info("Aucune classe trouvée pour l'analyse RGB.")
+            return
+        
+        # Calcul des distributions
+        rgb_distributions, y_max = self.rgb_analyzer.compute_rgb_distributions(class_images)
+        
+        if not rgb_distributions:
+            st.info("Aucune donnée RGB disponible.")
+            return
+        
+        # Légende commune
+        legend_fig = self.rgb_chart_generator.create_legend_figure()
+        st.plotly_chart(legend_fig, use_container_width=True)
+        
+        # Organisation en deux colonnes
+        col1, col2 = st.columns(2)
+        cols = [col1, col2]
+        
+        for i, cell_type in enumerate(cell_types):
+            if cell_type not in rgb_distributions:
+                continue
+            
+            x_vals, densities = rgb_distributions[cell_type]
+            fig = self.rgb_chart_generator.create_rgb_distribution_figure(
+                cell_type, x_vals, densities, y_max
+            )
+            
+            cols[i % 2].plotly_chart(fig, use_container_width=True)
+        
+        st.caption(
+            "🔎 Ces courbes permettent de comparer la distribution des valeurs RGB entre classes. "
+            "Les différences de densité peuvent indiquer des contrastes d'exposition ou des variations "
+            "de coloration propres à chaque type cellulaire."
+        )
+    
+    def render_mean_images_section(
+        self, 
+        class_images: Dict[str, List[Path]]
+    ) -> None:
+        """
+        Affiche la section des images moyennes par classe.
+        
+        Args:
+            class_images: Dictionnaire {classe: liste_chemins}
+        """
+        st.markdown("---")
+        st.subheader("Image moyenne par classe")
+        
+        # Calcul des images moyennes
+        mean_images = self.similarity_calculator.compute_mean_images(class_images)
+        
+        if not mean_images:
+            st.info("Aucune image moyenne n'a pu être calculée.")
+            return
+        
+        # Affichage en grille 4 colonnes
+        n_cols = 4
+        cols = st.columns(n_cols)
+        
+        for i, (class_name, mean_img) in enumerate(mean_images.items()):
+            with cols[i % n_cols]:
+                st.image(mean_img, caption=class_name, use_container_width=True)
+    
+    def render_similarity_matrix_section(
+        self, 
+        class_images: Dict[str, List[Path]]
+    ) -> None:
+        """
+        Affiche la section de la matrice de similarité cosinus.
+        
+        Args:
+            class_images: Dictionnaire {classe: liste_chemins}
+        """
+        st.markdown("---")
+        st.subheader("Similarité cosinus moyenne entre classes (images réelles)")
+        
+        # Calcul de la matrice de similarité
+        cosine_df = self.similarity_calculator.compute_cosine_similarity_matrix(class_images)
+        
+        if cosine_df.empty:
+            st.info("Impossible de calculer la matrice de similarité.")
+            return
+        
+        # Heatmap stylisée
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(
+            cosine_df,
+            annot=True,
+            cmap="YlGnBu",
+            fmt=".3f",
+            linewidths=0.5,
+            cbar_kws={"label": "Similarité cosinus moyenne"},
+        )
+        st.pyplot(fig)
+        
+        # Interprétation
+        st.markdown("""
+        **Interprétation :**  
+        Ce graphique montre la similarité cosinus moyenne entre les images réelles de chaque classe.  
+        Une valeur élevée (proche de 1) indique que les images de deux classes présentent des 
+        caractéristiques visuelles très proches (couleurs, textures ou structures globales similaires).  
+        Des valeurs plus faibles traduisent des différences plus nettes entre les types de cellules.
+        """)

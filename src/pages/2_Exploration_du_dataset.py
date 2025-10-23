@@ -45,9 +45,10 @@ def main() -> None:
     df = stats_calculator.create_class_dataframe(dataset_stats.class_counts)
     
     # Onglets Streamlit
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📊 Statistiques", 
         "📈 Distribution", 
+        "🎨 Couleurs RGB",
         "🖼️ Exemples d'images", 
         "🌈 Visualisation spectrale"
     ])
@@ -59,9 +60,14 @@ def main() -> None:
         renderer.render_distribution_tab(df)
     
     with tab3:
-        renderer.render_image_samples_tab(df, dataset_stats.class_images)
+        renderer.render_rgb_distribution_tab(dataset_stats.class_images)
     
     with tab4:
+        renderer.render_image_samples_tab(df, dataset_stats.class_images)
+        renderer.render_mean_images_section(dataset_stats.class_images)
+        renderer.render_similarity_matrix_section(dataset_stats.class_images)
+    
+    with tab5:
         renderer.render_spectral_visualization_tab(data_dir)
 
 
