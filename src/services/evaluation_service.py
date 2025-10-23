@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
+from sklearn.metrics import confusion_matrix
 
 from src.models.base_classifier import BaseClassifier
 
@@ -95,3 +96,22 @@ class EvaluationService:
         predictions = np.array(predictions)
         labels = np.array(labels)
         return np.mean(predictions == labels)
+    
+    def compute_confusion_matrix(
+        self, 
+        predictions: List[int], 
+        labels: List[int],
+        num_classes: int
+    ) -> np.ndarray:
+        """
+        Compute confusion matrix from predictions and labels.
+        
+        Args:
+            predictions: List of predicted class indices
+            labels: List of ground truth class indices
+            num_classes: Number of classes
+            
+        Returns:
+            Confusion matrix as numpy array of shape (num_classes, num_classes)
+        """
+        return confusion_matrix(labels, predictions, labels=list(range(num_classes)))

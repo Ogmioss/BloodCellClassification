@@ -1,0 +1,55 @@
+paths:
+    src:
+        root: ./src
+    data:
+        root: ./src/data
+        processed: ./src/data/processed
+        raw: ./src/data/raw
+    models:
+        root: ./models
+        checkpoints: ./models/checkpoints
+    runtime:
+        pid_file: ./streamlit.pid
+        log_file: ./logs/streamlit.log
+        
+training:
+    batch_size: 32
+    img_size: 224
+    epochs: 20
+    learning_rate: 0.001
+    num_workers: 0
+    seed: 42
+    
+    # Data splits
+    train_split: 0.7
+    val_split: 0.15
+    # test_split is computed as remainder
+    
+    # Dataset sampling
+    subset_size: 1400
+    
+model:
+    name: "resnet18"
+    pretrained: true
+    pretrained_weights: "IMAGENET1K_V1"
+    
+    # ImageNet normalization
+    normalization:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    
+augmentation:
+    # Training augmentations
+    train:
+        horizontal_flip: true
+        vertical_flip: true
+        rotation_degrees: 30
+        color_jitter:
+            brightness: 0.2
+            contrast: 0.2
+            saturation: 0.2
+    
+    # Validation/Test augmentations (none, just normalization)
+    val_test:
+        enabled: false
+    

@@ -2,6 +2,18 @@
 
 ## Completed ✅
 
+### Model Evaluation & Metrics (Oct 23, 2024)
+- [x] Fixed `YamlLoader` project_root path (was pointing to `src/` instead of project root)
+- [x] Created `evaluate_model.py` script to evaluate existing models and generate metrics
+- [x] Added `evaluate-model` entry point in `pyproject.toml`
+- [x] Fixed checkpoint loading logic to handle models saved without 'model.' prefix
+- [x] Generated `metrics.json` file with performance metrics (72.4% val accuracy, 71.6% test accuracy)
+- [x] Updated `conf.yaml` paths to reflect actual project structure
+- [x] Added confusion matrix computation in `EvaluationService`
+- [x] Integrated confusion matrix in both `train_model.py` and `evaluate_model.py`
+- [x] Added confusion matrix visualization in Streamlit page using Plotly heatmap
+- [x] Added per-class accuracy table in Streamlit interface
+
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture
 - [x] Created configuration-driven system (conf.yaml)
@@ -117,8 +129,8 @@ All parameters centralized in `src/conf.yaml`:
 - [ ] Add progress visualization during training
 
 ### Evaluation & Analysis
-- [ ] Generate confusion matrix visualization
-- [ ] Implement per-class metrics reporting
+- [x] Generate confusion matrix visualization
+- [x] Implement per-class metrics reporting
 - [ ] Add ROC curves and precision-recall curves
 - [ ] Create model interpretability tools (Grad-CAM)
 
