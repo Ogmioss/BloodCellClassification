@@ -5,6 +5,10 @@ import sys
 import json
 import subprocess
 import time
+import numpy as np
+import pandas as pd
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
 
 # Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
 torch.backends.mkldnn.enabled = False
@@ -257,9 +261,66 @@ if metrics is not None:
     with col3:
         st.metric("🏋️ Final Train Accuracy", f"{metrics.get('final_train_acc', 0):.2%}")
     
+    # Display confusion matrix if available
+    if 'confusion_matrix' in metrics and 'class_names' in metrics:
+        st.markdown("---")
+        st.subheader("📊 Matrice de confusion")
+        
+        confusion_mat = np.array(metrics['confusion_matrix'])
+        class_names_list = metrics['class_names']
+        
+        # Create annotated heatmap using plotly
+        fig = ff.create_annotated_heatmap(
+            z=confusion_mat,
+            x=class_names_list,
+            y=class_names_list,
+            colorscale='Blues',
+            showscale=True,
+            annotation_text=confusion_mat.astype(str)
+        )
+        
+        # Update layout
+        fig.update_layout(
+            title='Matrice de confusion (Test Set)',
+            xaxis_title='Prédictions',
+            yaxis_title='Vraies étiquettes',
+            height=600,
+            width=800,
+            xaxis={'side': 'bottom'},
+            yaxis={'autorange': 'reversed'}
+        )
+        
+        # Update font size for annotations
+        for annotation in fig.layout.annotations:
+            annotation.font.size = 10
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Display per-class accuracy
+        st.markdown("### 📈 Précision par classe")
+        
+        # Calculate per-class accuracy
+        per_class_acc = []
+        for i, class_name in enumerate(class_names_list):
+            total = confusion_mat[i].sum()
+            correct = confusion_mat[i, i]
+            accuracy = (correct / total * 100) if total > 0 else 0
+            per_class_acc.append({
+                'Classe': class_name,
+                'Correct': int(correct),
+                'Total': int(total),
+                'Précision': f"{accuracy:.1f}%"
+            })
+        
+        # Display as table
+        df_acc = pd.DataFrame(per_class_acc)
+        st.dataframe(df_acc, use_container_width=True, hide_index=True)
+    
     # Additional metrics details
     with st.expander("📊 Détails complets des métriques", expanded=False):
-        st.json(metrics)
+        # Display metrics without confusion matrix (too large for JSON display)
+        display_metrics = {k: v for k, v in metrics.items() if k != 'confusion_matrix'}
+        st.json(display_metrics)
         
         # Display training loss if available
         if 'final_train_loss' in metrics:

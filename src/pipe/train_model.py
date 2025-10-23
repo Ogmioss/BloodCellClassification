@@ -102,6 +102,14 @@ def main():
     print(f"Test Accuracy: {test_results['accuracy']:.4f}")
     print(f"Model saved to: {checkpoint_path}")
     
+    # Compute confusion matrix
+    print("\nComputing confusion matrix...")
+    confusion_mat = evaluation_service.compute_confusion_matrix(
+        test_results['predictions'],
+        test_results['labels'],
+        len(class_names)
+    )
+    
     # Save metrics to JSON file
     metrics_path = checkpoint_dir / "metrics.json"
     metrics_data = {
@@ -109,7 +117,8 @@ def main():
         'final_train_loss': training_metrics['final_train_loss'],
         'final_train_acc': training_metrics['final_train_acc'],
         'accuracy': test_results['accuracy'],
-        'class_names': class_names
+        'class_names': class_names,
+        'confusion_matrix': confusion_mat.tolist()
     }
     
     with open(metrics_path, 'w') as f:

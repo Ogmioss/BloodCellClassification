@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "ipykernel>=7.0.1",
+    "ipywidgets>=8.1.7",
     "kaggle>=1.7.4.5",
     "matplotlib>=3.10.7",
     "opencv-python>=4.12.0.88",
@@ -27,6 +28,7 @@ dependencies = [
 
 [project.scripts]
 train-model = "src.pipe.train_model:main"
+evaluate-model = "src.pipe.evaluate_model:main"
 
 [tool.setuptools]
 packages = ["src", "src.services", "src.models", "src.pipe", "src.pages"]
