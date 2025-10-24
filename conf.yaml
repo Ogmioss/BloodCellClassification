@@ -2,9 +2,9 @@ paths:
     src:
         root: ./src
     data:
-        root: ./data
-        processed: ./data/processed
-        raw: ./data/raw
+        root: ./src/data
+        processed: ./src/data/processed
+        raw: ./src/data/raw
     models:
         root: ./models
         checkpoints: ./models/checkpoints
@@ -37,7 +37,6 @@ model:
     normalization:
         mean: [0.485, 0.456, 0.406]
         std: [0.229, 0.224, 0.225]
-    
     
 augmentation:
     # Training augmentations
