@@ -21,6 +21,14 @@
 - [x] Added masked models predictions in demo page (2-column layout: PyTorch models grouped, Keras models grouped) (Oct 24)
   - Column 1: ResNet + ResNet masked
   - Column 2: Keras Baseline PBC + Keras Baseline PBC masked
+- [x] Fixed GradCAM implementation to avoid gradient pollution between images (Oct 24)
+  - Added explicit `model.zero_grad()` calls before and after attribution
+  - Added `torch.no_grad()` context for inference
+  - Added `.cpu()` call to ensure proper tensor cleanup
+  - Added division by zero protection in heatmap normalization
+  - Improved model caching with clean state initialization
+  - Added button to reload model and clear cache
+  - Added seed-based random sampling with refresh button
 
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture

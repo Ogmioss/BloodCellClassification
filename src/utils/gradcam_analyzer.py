@@ -96,23 +96,43 @@ def gradcam_analysis(
     Returns:
         Tuple of (original_image, heatmap, overlay, predicted_label, confidence)
     """
+    # Ensure model is in eval mode and gradients are cleared
+    model.eval()
+    model.zero_grad()
+    
     image = Image.open(image_path).convert("RGB")
     input_tensor = transform(image).unsqueeze(0)
     
-    # Prediction
-    output = model(input_tensor)
-    probs = F.softmax(output, dim=1)
-    pred_class = probs.argmax(dim=1).item()
-    pred_conf = probs[0, pred_class].item() * 100
+    # Prediction with no_grad context for efficiency
+    with torch.no_grad():
+        output = model(input_tensor)
+        probs = F.softmax(output, dim=1)
+        pred_class = probs.argmax(dim=1).item()
+        pred_conf = probs[0, pred_class].item() * 100
     
-    # Grad-CAM computation
+    # Clear any residual gradients before GradCAM
+    model.zero_grad()
+    
+    # Grad-CAM computation (requires gradients)
     target_layer = model.layer4[-1]
     gradcam = LayerGradCam(model, target_layer)
+    
+    # Enable gradients only for attribution
+    input_tensor.requires_grad = True
     attribution = gradcam.attribute(input_tensor, target=pred_class)
+    
+    # Clean up gradients after attribution
+    model.zero_grad()
+    
     upsampled_attr = LayerAttribution.interpolate(attribution, input_tensor.shape[2:])
-    heatmap = upsampled_attr.squeeze().detach().numpy()
+    heatmap = upsampled_attr.squeeze().detach().cpu().numpy()
     heatmap = np.maximum(heatmap, 0)
-    heatmap /= heatmap.max()
+    
+    # Avoid division by zero
+    if heatmap.max() > 0:
+        heatmap /= heatmap.max()
+    else:
+        heatmap = np.zeros_like(heatmap)
     
     # Create overlay
     img = np.array(image)
