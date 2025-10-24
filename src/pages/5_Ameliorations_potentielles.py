@@ -62,7 +62,7 @@ def run_gradcam_analysis(
     st.success(f"Dataset détecté : `{data_dir}` ✅")
     counts, class_images = load_dataset_images(data_dir)
     
-    # Load model
+    # Load model with proper caching
     @st.cache_resource
     def load_model(checkpoint_file: str) -> object:
         yaml_loader = YamlLoader()
@@ -71,10 +71,19 @@ def run_gradcam_analysis(
             './models/checkpoints'
         )
         checkpoint_path = Path(checkpoint_dir) / checkpoint_file
-        return load_resnet_model(checkpoint_path, num_classes=8)
+        model = load_resnet_model(checkpoint_path, num_classes=8)
+        # Ensure clean state
+        model.eval()
+        model.zero_grad()
+        return model
     
     model = load_model(checkpoint_filename)
     transform = get_image_transform()
+    
+    # Add option to clear cache if needed
+    if st.sidebar.button(f"🔄 Recharger le modèle ({tab_title[:20]}...)", key=f"reload_{checkpoint_filename}"):
+        st.cache_resource.clear()
+        st.rerun()
     
     # Class selection
     st.subheader("🎯 Sélection par classe")
@@ -85,13 +94,20 @@ def run_gradcam_analysis(
     )
     
     if selected_class and class_images.get(selected_class):
+        # Use a seed for reproducibility but allow refresh
+        if st.button("🎲 Nouvelles images aléatoires", key=f"refresh_{checkpoint_filename}"):
+            st.session_state[f"seed_{checkpoint_filename}"] = random.randint(0, 10000)
+        
+        seed = st.session_state.get(f"seed_{checkpoint_filename}", 42)
+        random.seed(seed)
+        
         sample_images = random.sample(
             class_images[selected_class],
             min(3, len(class_images[selected_class]))
         )
         st.info(
             f"Analyse Grad-CAM sur **3 images aléatoires** "
-            f"de la classe **{selected_class}**."
+            f"de la classe **{selected_class}** (seed: {seed})."
         )
     else:
         st.warning("Aucune image disponible pour cette classe.")
