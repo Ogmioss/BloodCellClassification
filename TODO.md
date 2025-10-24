@@ -2,7 +2,7 @@
 
 ## Completed ✅
 
-### Model Evaluation & Metrics (Oct 23, 2024)
+### Model Evaluation & Metrics (Oct 23-24, 2024)
 - [x] Fixed `YamlLoader` project_root path (was pointing to `src/` instead of project root)
 - [x] Created `evaluate_model.py` script to evaluate existing models and generate metrics
 - [x] Added `evaluate-model` entry point in `pyproject.toml`
@@ -13,6 +13,8 @@
 - [x] Integrated confusion matrix in both `train_model.py` and `evaluate_model.py`
 - [x] Added confusion matrix visualization in Streamlit page using Plotly heatmap
 - [x] Added per-class accuracy table in Streamlit interface
+- [x] Created `KerasInferenceService` for Keras/TensorFlow model inference (Oct 24)
+- [x] Modified demo page to compare predictions from PyTorch and Keras models side-by-side (Oct 24)
 
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture
@@ -59,7 +61,8 @@ src/
 │   ├── dataset_service.py           # Handles dataset loading & splitting
 │   ├── training_service.py          # Handles model training
 │   ├── evaluation_service.py        # Handles model evaluation
-│   ├── inference_service.py         # Handles model inference
+│   ├── inference_service.py         # Handles PyTorch model inference
+│   ├── keras_inference_service.py   # Handles Keras/TensorFlow model inference
 │   └── yaml_loader.py               # Configuration management
 ├── models/
 │   ├── base_classifier.py           # Abstract base class (Interface Segregation)
@@ -78,7 +81,7 @@ src/
 ├── pages/
 │   ├── 2_Exploration_du_dataset.py  # Dataset exploration with visualizations
 │   ├── 3_Modele.py                  # Model info & metrics visualization
-│   └── 4_Demo.py                    # Interactive demo using InferenceService
+│   └── 4_Demo.py                    # Interactive demo comparing PyTorch & Keras models
 └── pipe/
     ├── train_model.py               # Main training script
     └── evaluate_model.py            # Model evaluation script
