@@ -18,6 +18,9 @@
 - [x] Created `gradcam_analyzer.py` utility module for Grad-CAM analysis (Oct 24)
 - [x] Refactored page 5 with tabs to compare ResNet with/without mask (Oct 24)
 - [x] Implemented SOLID principles: extracted reusable functions to avoid code duplication (Oct 24)
+- [x] Added masked models predictions in demo page (2-column layout: PyTorch models grouped, Keras models grouped) (Oct 24)
+  - Column 1: ResNet + ResNet masked
+  - Column 2: Keras Baseline PBC + Keras Baseline PBC masked
 
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture
@@ -85,7 +88,7 @@ src/
 ├── pages/
 │   ├── 2_Exploration_du_dataset.py  # Dataset exploration with visualizations
 │   ├── 3_Modele.py                  # Model info & metrics visualization
-│   ├── 4_Demo.py                    # Interactive demo comparing PyTorch & Keras models
+│   ├── 4_Demo.py                    # Interactive demo: 4 models comparison (PyTorch & Keras, each with/without mask)
 │   └── 5_Ameliorations_potentielles.py  # Grad-CAM analysis with/without mask comparison
 └── pipe/
     ├── train_model.py               # Main training script
