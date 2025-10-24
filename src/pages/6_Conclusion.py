@@ -13,6 +13,8 @@ st.markdown("""
 
 ### Limites
 - Le modèle ResNET n'a pas été entrainé sur l'ensemble du dataset par manque de puissance de calcul.
+
+
 - Quelques classes rares (basophils, erythroblasts) restent difficiles à distinguer.
 - Nécessité d’un dataset plus équilibré et de techniques d’interprétation approfondies.
 - Le modèle peut avoir tendance à se focaliser sur l'arrière plan de l'image pour les prédictions.
