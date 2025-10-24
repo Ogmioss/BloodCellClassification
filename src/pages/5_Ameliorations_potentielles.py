@@ -19,8 +19,7 @@ st.set_page_config(page_title="Pistes d'amélioration du modèle", layout="wide"
 
 st.title("🔍 Analyse d'interprétabilité – Grad-CAM")
 st.markdown("""
-Cette page te permet de visualiser les zones d'attention de ton modèle **ResNet18** sur les images de cellules sanguines.
-Sélectionne une classe pour générer les cartes Grad-CAM correspondantes.
+Cette page nous permet de visualiser les zones d'attention du modèle **ResNet18** sur les images des cellules sanguines.
 """)
 
 st.divider()
