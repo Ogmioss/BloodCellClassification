@@ -15,6 +15,9 @@
 - [x] Added per-class accuracy table in Streamlit interface
 - [x] Created `KerasInferenceService` for Keras/TensorFlow model inference (Oct 24)
 - [x] Modified demo page to compare predictions from PyTorch and Keras models side-by-side (Oct 24)
+- [x] Created `gradcam_analyzer.py` utility module for Grad-CAM analysis (Oct 24)
+- [x] Refactored page 5 with tabs to compare ResNet with/without mask (Oct 24)
+- [x] Implemented SOLID principles: extracted reusable functions to avoid code duplication (Oct 24)
 
 ### Code Refactoring (SOLID Architecture)
 - [x] Refactored notebook training code into SOLID architecture
@@ -71,6 +74,7 @@ src/
 ├── utils/
 │   ├── chart_generator.py           # General chart generation
 │   ├── dataset_analyzer.py          # Dataset analysis utilities
+│   ├── gradcam_analyzer.py          # Grad-CAM analysis utilities
 │   ├── image_loader.py              # Image loading utilities
 │   ├── image_similarity.py          # Cosine similarity & mean images
 │   ├── rgb_analyzer.py              # RGB distribution analysis (KDE)
@@ -81,7 +85,8 @@ src/
 ├── pages/
 │   ├── 2_Exploration_du_dataset.py  # Dataset exploration with visualizations
 │   ├── 3_Modele.py                  # Model info & metrics visualization
-│   └── 4_Demo.py                    # Interactive demo comparing PyTorch & Keras models
+│   ├── 4_Demo.py                    # Interactive demo comparing PyTorch & Keras models
+│   └── 5_Ameliorations_potentielles.py  # Grad-CAM analysis with/without mask comparison
 └── pipe/
     ├── train_model.py               # Main training script
     └── evaluate_model.py            # Model evaluation script
@@ -155,8 +160,8 @@ All parameters centralized in `src/conf.yaml`:
 ### Evaluation & Analysis
 - [x] Generate confusion matrix visualization
 - [x] Implement per-class metrics reporting
+- [x] Create model interpretability tools (Grad-CAM)
 - [ ] Add ROC curves and precision-recall curves
-- [ ] Create model interpretability tools (Grad-CAM)
 
 ### Data Pipeline
 - [ ] Implement data versioning (DVC)
