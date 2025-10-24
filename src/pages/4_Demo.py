@@ -92,7 +92,7 @@ def load_keras_inference_service(checkpoint_name: str = 'baseline_pbc_model.kera
         inference_service = KerasInferenceService.load_from_checkpoint(
             checkpoint_path=checkpoint_path,
             class_names=CLASS_NAMES,
-            input_size=(200, 200)  # Baseline PBC model expects 200x200 images
+            input_size=(200, 200)  # Baseline CNN model expects 200x200 images
         )
         
         return inference_service, None
@@ -125,7 +125,7 @@ with col1:
         st.success("Modèle chargé ✅")
 
 with col2:
-    st.subheader("🧠 Modèle Keras (Baseline PBC)")
+    st.subheader("🧠 Modèle Keras (Baseline CNN)")
     if keras_error:
         st.error(f"Erreur: {keras_error}")
     else:
@@ -133,7 +133,7 @@ with col2:
     
     st.markdown("---")
     
-    st.subheader("🎨 Modèle Keras (Baseline PBC masqué)")
+    st.subheader("🎨 Modèle Keras (Baseline CNN masqué)")
     if keras_masked_error:
         st.error(f"Erreur: {keras_masked_error}")
     else:
@@ -201,7 +201,7 @@ if uploaded:
     
     # Keras model prediction
     with col2:
-        st.subheader("🧠 Prédiction Keras (Baseline PBC)")
+        st.subheader("🧠 Prédiction Keras (Baseline CNN)")
         if keras_service:
             try:
                 prediction = keras_service.predict_image(img)
@@ -224,7 +224,7 @@ if uploaded:
         st.divider()
         
         # Keras masked model prediction
-        st.subheader("🎨 Prédiction Keras (Baseline PBC masqué)")
+        st.subheader("🎨 Prédiction Keras (Baseline CNN masqué)")
         if keras_masked_service:
             try:
                 prediction = keras_masked_service.predict_image(img)
