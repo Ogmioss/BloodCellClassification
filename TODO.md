@@ -180,6 +180,15 @@ All parameters centralized in `src/conf.yaml`:
 - [ ] Implement cross-validation
 - [ ] Add stratified sampling
 
+### MLOps Refactor: Streamlit -> FastAPI + MLflow + Airflow (Dec 2025)
+- [x] Diagnostic initial de l’architecture Streamlit / services / pipe pour préparer la migration vers FastAPI
+- [ ] Phase 1 – Extraire un module `ml_core` (entrainement, évaluation, inférence) découplé de Streamlit et couvert par des tests
+- [ ] Phase 2 – Créer une API FastAPI minimale (`/health`, `/predict`) qui réutilise `ml_core` et charge un modèle à partir des checkpoints actuels
+- [ ] Phase 3 – Instrumenter l’entrainement avec MLflow (tracking + Model Registry local) et connecter FastAPI au modèle "Production"
+- [ ] Phase 4 – Créer les DAGs Airflow (`train_model`, `evaluate_model`, `batch_inference` si besoin) qui orchestrent `ml_core` et MLflow
+- [ ] Phase 5 – Mettre en place CI/CD (tests + build Docker pour l’API et Airflow, déploiement staging)
+- [ ] Phase 6 – Ajouter data/versioning (DVC ou équivalent) et monitoring de dérive + latence, avec retrain automatique déclenché par seuil
+
 ### Production
 - [ ] Create model serving API
 - [ ] Add model versioning
