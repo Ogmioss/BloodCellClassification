@@ -182,8 +182,15 @@ All parameters centralized in `src/conf.yaml`:
 
 ### MLOps Refactor: Streamlit -> FastAPI + MLflow + Airflow (Dec 2025)
 - [x] Diagnostic initial de l’architecture Streamlit / services / pipe pour préparer la migration vers FastAPI
-- [ ] Phase 1 – Extraire un module `ml_core` (entrainement, évaluation, inférence) découplé de Streamlit et couvert par des tests
-- [ ] Phase 2 – Créer une API FastAPI minimale (`/health`, `/predict`) qui réutilise `ml_core` et charge un modèle à partir des checkpoints actuels
+- [x] Phase 1 – Les services existants (`InferenceService`, `TrainingService`, etc.) font déjà office de `ml_core`
+- [x] Phase 2 – API FastAPI minimale créée avec endpoints:
+  - `GET /health` – Health check (status, model_loaded, device)
+  - `GET /metrics` – Métriques du modèle (accuracy, confusion matrix)
+  - `GET /model/info` – Infos architecture (model_name, num_classes, class_names)
+  - `POST /predict` – Prédiction via base64
+  - `POST /predict/upload` – Prédiction via upload fichier
+  - Tests: `tests/test_api.py` (10 tests passants)
+  - Lancement: `uv run start-api` ou `uv run uvicorn src.api.main:app`
 - [ ] Phase 3 – Instrumenter l’entrainement avec MLflow (tracking + Model Registry local) et connecter FastAPI au modèle "Production"
 - [ ] Phase 4 – Créer les DAGs Airflow (`train_model`, `evaluate_model`, `batch_inference` si besoin) qui orchestrent `ml_core` et MLflow
 - [ ] Phase 5 – Mettre en place CI/CD (tests + build Docker pour l’API et Airflow, déploiement staging)
