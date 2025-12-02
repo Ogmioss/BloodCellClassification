@@ -52,4 +52,10 @@ augmentation:
     # Validation/Test augmentations (none, just normalization)
     val_test:
         enabled: false
+
+mlflow:
+    tracking_uri: "./mlruns"  # Local file-based tracking (can be changed to remote server)
+    experiment_name: "bloodcells-classification"
+    model_name: "bloodcells-classifier"  # Name in Model Registry
+    auto_log: false  # Manual logging for more control
     

@@ -191,7 +191,13 @@ All parameters centralized in `src/conf.yaml`:
   - `POST /predict/upload` – Prédiction via upload fichier
   - Tests: `tests/test_api.py` (10 tests passants)
   - Lancement: `uv run start-api` ou `uv run uvicorn src.api.main:app`
-- [ ] Phase 3 – Instrumenter l’entrainement avec MLflow (tracking + Model Registry local) et connecter FastAPI au modèle "Production"
+- [x] Phase 3 – Intégration MLflow complète:
+  - `MLflowService` créé (`src/services/mlflow_service.py`) avec tracking, logging, Model Registry
+  - `train_model.py` modifié pour loguer params, métriques, artefacts et enregistrer le modèle
+  - API FastAPI connectée au Model Registry (charge depuis MLflow ou fallback checkpoint)
+  - Nouveaux endpoints: `GET /mlflow/models`, `POST /mlflow/promote/{version}`
+  - Tests: `tests/test_mlflow_service.py` (16 tests passants)
+  - Config MLflow dans `conf.yaml` (tracking_uri, experiment_name, model_name)
 - [ ] Phase 4 – Créer les DAGs Airflow (`train_model`, `evaluate_model`, `batch_inference` si besoin) qui orchestrent `ml_core` et MLflow
 - [ ] Phase 5 – Mettre en place CI/CD (tests + build Docker pour l’API et Airflow, déploiement staging)
 - [ ] Phase 6 – Ajouter data/versioning (DVC ou équivalent) et monitoring de dérive + latence, avec retrain automatique déclenché par seuil

@@ -2,9 +2,11 @@
 Main Training Script
 
 Orchestrates all services to train a blood cell classification model.
+Integrates with MLflow for experiment tracking and model registry.
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 import torch
 
@@ -16,22 +18,34 @@ from src.services.data_transform_service import DataTransformService
 from src.services.dataset_service import DatasetService
 from src.services.training_service import TrainingService
 from src.services.evaluation_service import EvaluationService
+from src.services.mlflow_service import MLflowService
 from src.models.model_factory import ModelFactory
 
 
 def main():
-    """Main training pipeline."""
+    """Main training pipeline with MLflow tracking."""
     
     # Load configuration
     print("Loading configuration...")
     loader = YamlLoader()
     config = loader.config
     
+    # Initialize MLflow service
+    print("Initializing MLflow tracking...")
+    mlflow_service = MLflowService.from_config(config)
+    run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    mlflow_service.start_run(run_name=run_name)
+    print(f"MLflow run started: {mlflow_service.run_id}")
+    
+    # Log git info and dataset path
+    mlflow_service.log_git_info()
+    
     # Get dataset path
     data_dir = loader.data_dir
     dataset_path = data_dir / "raw" / "bloodcells_dataset"
     
     print(f"Dataset path: {dataset_path}")
+    mlflow_service.set_tags({"dataset_path": str(dataset_path)})
     
     # Get device
     device = ModelFactory.get_device()
@@ -65,6 +79,17 @@ def main():
     print("\nCreating model...")
     model = ModelFactory.create_model(config, len(class_names), device)
     print(f"Model: {config['model']['name']}")
+    
+    # Log training parameters to MLflow
+    mlflow_service.log_params({
+        "model": config.get("model", {}),
+        "training": config.get("training", {}),
+        "augmentation": config.get("augmentation", {}),
+        "num_classes": len(class_names),
+        "train_samples": len(train_loader.dataset),
+        "val_samples": len(val_loader.dataset),
+        "test_samples": len(test_loader.dataset),
+    })
     
     # Setup checkpoint path
     checkpoint_dir = Path(loader.get_nested_value('paths.models.checkpoints', './models/checkpoints'))
@@ -110,6 +135,14 @@ def main():
         len(class_names)
     )
     
+    # Log metrics to MLflow
+    mlflow_service.log_metrics({
+        "best_val_acc": training_metrics['best_val_acc'],
+        "final_train_loss": training_metrics['final_train_loss'],
+        "final_train_acc": training_metrics['final_train_acc'],
+        "test_accuracy": test_results['accuracy'],
+    })
+    
     # Save metrics to JSON file
     metrics_path = checkpoint_dir / "metrics.json"
     metrics_data = {
@@ -126,11 +159,33 @@ def main():
     
     print(f"Metrics saved to: {metrics_path}")
     
+    # Log artifacts to MLflow
+    mlflow_service.log_artifact(str(metrics_path))
+    mlflow_service.log_artifact(str(checkpoint_path))
+    
+    # Log model to MLflow Model Registry
+    print("\nRegistering model in MLflow...")
+    mlflow_service.log_model(
+        model,
+        artifact_path="model",
+        registered_model_name=mlflow_service.model_name,
+    )
+    
+    # Get the registered version
+    latest_version = mlflow_service.get_latest_model_version()
+    print(f"Model registered as version: {latest_version}")
+    
+    # End MLflow run
+    mlflow_service.end_run()
+    print("MLflow run completed.")
+    
     return {
         'model': model,
         'training_metrics': training_metrics,
         'test_results': test_results,
-        'class_names': class_names
+        'class_names': class_names,
+        'mlflow_run_id': mlflow_service.run_id,
+        'model_version': latest_version,
     }
 
 

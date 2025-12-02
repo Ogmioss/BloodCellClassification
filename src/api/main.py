@@ -28,6 +28,7 @@ from src.api.schemas import (
 )
 from src.services.yaml_loader import YamlLoader
 from src.services.inference_service import InferenceService
+from src.services.mlflow_service import MLflowService
 from src.models.model_factory import ModelFactory
 
 
@@ -97,20 +98,69 @@ def get_device() -> torch.device:
 
 
 @lru_cache()
+def get_mlflow_service() -> MLflowService:
+    """Get cached MLflow service instance."""
+    config = get_config()
+    return MLflowService.from_config(config)
+
+
+def get_model_source() -> str:
+    """
+    Determine the model source: 'mlflow' or 'checkpoint'.
+    
+    Prefers MLflow if a model is registered, falls back to checkpoint.
+    """
+    try:
+        mlflow_service = get_mlflow_service()
+        latest_version = mlflow_service.get_latest_model_version()
+        if latest_version:
+            return "mlflow"
+    except Exception:
+        pass
+    return "checkpoint"
+
+
+@lru_cache()
 def get_inference_service() -> Optional[InferenceService]:
     """
     Load and cache inference service.
     
-    Returns None if model checkpoint doesn't exist.
+    Tries to load from MLflow Model Registry first, falls back to checkpoint.
+    Returns None if no model is available.
     """
+    config = get_config()
+    device = get_device()
+    
+    # Try MLflow first
+    try:
+        mlflow_service = get_mlflow_service()
+        latest_version = mlflow_service.get_latest_model_version()
+        
+        if latest_version:
+            print(f"Loading model from MLflow registry (version {latest_version})...")
+            model = mlflow_service.load_model(version=latest_version)
+            model = model.to(device)
+            model.eval()
+            
+            from src.services.data_transform_service import DataTransformService
+            transform_service = DataTransformService(config)
+            
+            return InferenceService(
+                model=model,
+                transform_service=transform_service,
+                device=device,
+                class_names=CLASS_NAMES
+            )
+    except Exception as e:
+        print(f"Could not load from MLflow: {e}")
+    
+    # Fallback to checkpoint
     checkpoint_path = get_checkpoint_path()
     
     if not checkpoint_path.exists():
         return None
     
-    config = get_config()
-    device = get_device()
-    
+    print(f"Loading model from checkpoint: {checkpoint_path}")
     return InferenceService.load_from_checkpoint(
         checkpoint_path=checkpoint_path,
         config=config,
@@ -193,6 +243,21 @@ def get_model_info() -> dict:
     config = get_config()
     model_config = config.get("model", {})
     
+    # Get MLflow info
+    mlflow_info = {"available": False}
+    try:
+        mlflow_service = get_mlflow_service()
+        latest_version = mlflow_service.get_latest_model_version()
+        if latest_version:
+            mlflow_info = {
+                "available": True,
+                "model_name": mlflow_service.model_name,
+                "latest_version": latest_version,
+                "tracking_uri": mlflow_service.tracking_uri,
+            }
+    except Exception:
+        pass
+    
     return {
         "model_name": model_config.get("name", "resnet18"),
         "pretrained": model_config.get("pretrained", True),
@@ -203,8 +268,69 @@ def get_model_info() -> dict:
             "mean": [0.485, 0.456, 0.406],
             "std": [0.229, 0.224, 0.225]
         }),
-        "checkpoint_available": get_checkpoint_path().exists()
+        "checkpoint_available": get_checkpoint_path().exists(),
+        "model_source": get_model_source(),
+        "mlflow": mlflow_info,
     }
+
+
+@app.get(
+    "/mlflow/models",
+    tags=["MLflow"],
+    summary="List registered model versions",
+    description="Get all versions of the registered model from MLflow"
+)
+def list_mlflow_models() -> dict:
+    """List all model versions in MLflow registry."""
+    try:
+        mlflow_service = get_mlflow_service()
+        client = mlflow_service.client
+        
+        # Get all versions
+        versions = []
+        try:
+            for mv in client.search_model_versions(f"name='{mlflow_service.model_name}'"):
+                versions.append({
+                    "version": mv.version,
+                    "stage": mv.current_stage,
+                    "status": mv.status,
+                    "run_id": mv.run_id,
+                    "creation_timestamp": mv.creation_timestamp,
+                })
+        except Exception:
+            pass
+        
+        return {
+            "model_name": mlflow_service.model_name,
+            "tracking_uri": mlflow_service.tracking_uri,
+            "versions": versions,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MLflow error: {e}")
+
+
+@app.post(
+    "/mlflow/promote/{version}",
+    tags=["MLflow"],
+    summary="Promote model to Production",
+    description="Transition a model version to Production stage"
+)
+def promote_model(version: str) -> dict:
+    """Promote a model version to Production stage."""
+    try:
+        mlflow_service = get_mlflow_service()
+        mlflow_service.promote_to_production(version=version)
+        
+        # Clear the inference service cache to reload the new model
+        get_inference_service.cache_clear()
+        
+        return {
+            "status": "success",
+            "message": f"Model version {version} promoted to Production",
+            "model_name": mlflow_service.model_name,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Promotion failed: {e}")
 
 
 @app.post(
