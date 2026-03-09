@@ -9,23 +9,31 @@ description = "Blood cell classification using deep learning"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "ipykernel>=7.0.1",
-    "ipywidgets>=8.1.7",
-    "kaggle>=1.7.4.5",
+    "captum>=0.7.0",
     "matplotlib>=3.10.7",
+    "numpy>=1.26.0",
     "opencv-python>=4.12.0.88",
     "pillow>=10.0.0",
     "plotly>=5.18.0",
+    "pydantic>=2.0.0",
     "pyyaml>=6.0.3",
     "scikit-image>=0.25.2",
     "scikit-learn>=1.7.2",
     "scipy>=1.11.0",
     "seaborn>=0.13.2",
     "streamlit>=1.50.0",
-    "tensorflow>=2.20.0",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+kaggle = [
+    "kaggle>=1.7.4.5",
+]
+notebooks = [
+    "ipykernel>=7.0.1",
+    "ipywidgets>=8.1.7",
 ]
 
 [project.scripts]
@@ -33,15 +41,26 @@ train-model = "src.pipe.train_model:main"
 evaluate-model = "src.pipe.evaluate_model:main"
 
 [tool.setuptools]
-packages = ["src", "src.services", "src.models", "src.pipe", "src.pages", "src.utils"]
+packages = ["src", "src.core", "src.services", "src.models", "src.pipe", "src.pages", "src.utils"]
 
 [tool.setuptools.package-data]
-src = ["conf.yaml", "assets/*"]
+src = ["assets/*"]
 
 [tool.uv]
 package = true
 
+[tool.ruff]
+exclude = ["notebooks"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/pages/*" = ["E402"]
+"src/pipe/*" = ["E402"]
+"tests/test_device.py" = ["E402"]
+"tests/test_training_pipeline.py" = ["E402"]
+
 [dependency-groups]
 dev = [
+    "pip-audit>=2.7.0",
     "pytest>=8.4.2",
+    "ruff>=0.8.0",
 ]
