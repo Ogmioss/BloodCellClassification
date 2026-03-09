@@ -6,7 +6,6 @@ import pytest
 import torch
 from PIL import Image
 import numpy as np
-from pathlib import Path
 
 from src.services.inference_service import InferenceService
 from src.services.data_transform_service import DataTransformService

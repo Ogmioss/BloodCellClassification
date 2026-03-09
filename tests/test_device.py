@@ -4,7 +4,6 @@
 import torch
 from pathlib import Path
 import sys
-import os
 
 # Disable oneDNN to fix "could not create a primitive" error
 torch.backends.mkldnn.enabled = False
@@ -31,15 +30,15 @@ test_tensor = torch.randn(1, 3, 224, 224).to(device)
 print(f"Tensor device: {test_tensor.device}")
 
 # Test création d'un modèle simple
-print(f"\nCréation d'un modèle simple:")
+print("\nCréation d'un modèle simple:")
 model = torch.nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3).to(device)
 print(f"Model device (premier paramètre): {next(model.parameters()).device}")
 
 # Test forward pass
-print(f"\nTest forward pass:")
+print("\nTest forward pass:")
 try:
     output = model(test_tensor)
-    print(f"✅ Forward pass réussi!")
+    print("✅ Forward pass réussi!")
     print(f"Output device: {output.device}")
     print(f"Output shape: {output.shape}")
 except Exception as e:

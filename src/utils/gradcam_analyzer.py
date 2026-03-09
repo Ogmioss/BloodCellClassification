@@ -8,9 +8,14 @@ import numpy as np
 import streamlit as st
 import torch
 import torch.nn.functional as F
-from captum.attr import LayerAttribution, LayerGradCam
 from PIL import Image, UnidentifiedImageError
 from torchvision import models, transforms
+
+try:
+    from captum.attr import LayerAttribution, LayerGradCam
+except ImportError:
+    LayerAttribution = None
+    LayerGradCam = None
 
 
 def load_resnet_model(checkpoint_path: Path, num_classes: int = 8) -> torch.nn.Module:
@@ -68,7 +73,7 @@ def load_dataset_images(data_dir: Path) -> Tuple[Dict[str, int], Dict[str, List[
             valid_images = []
             for f in image_files:
                 try:
-                    img = Image.open(f)
+                    Image.open(f).verify()
                     valid_images.append(f)
                 except UnidentifiedImageError:
                     st.warning(f"Fichier ignoré (non-image ou corrompu) : {f.name}")
@@ -112,7 +117,10 @@ def gradcam_analysis(
     
     # Clear any residual gradients before GradCAM
     model.zero_grad()
-    
+
+    if LayerGradCam is None:
+        raise ImportError("captum is required for Grad-CAM analysis. Install with: uv add captum")
+
     # Grad-CAM computation (requires gradients)
     target_layer = model.layer4[-1]
     gradcam = LayerGradCam(model, target_layer)
@@ -174,4 +182,4 @@ def display_gradcam_results(
         f"</div>",
         unsafe_allow_html=True
     )
-    st.markdown("---")
+    st.divider()
