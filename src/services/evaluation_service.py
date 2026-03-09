@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
 from src.models.base_classifier import BaseClassifier
 
@@ -115,3 +115,64 @@ class EvaluationService:
             Confusion matrix as numpy array of shape (num_classes, num_classes)
         """
         return confusion_matrix(labels, predictions, labels=list(range(num_classes)))
+
+    def compute_per_class_metrics(
+        self,
+        predictions: List[int],
+        labels: List[int],
+        class_names: List[str],
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute precision, recall, and F1 score per class.
+        
+        Args:
+            predictions: List of predicted class indices
+            labels: List of ground truth class indices
+            class_names: List of class names
+            
+        Returns:
+            Dictionary with per-class metrics:
+            {
+                "basophil": {"precision": 0.95, "recall": 0.92, "f1": 0.93, "support": 100},
+                ...
+            }
+        """
+        precision, recall, f1, support = precision_recall_fscore_support(
+            labels, predictions, labels=list(range(len(class_names))), zero_division=0
+        )
+        
+        per_class = {}
+        for i, class_name in enumerate(class_names):
+            per_class[class_name] = {
+                "precision": float(precision[i]),
+                "recall": float(recall[i]),
+                "f1": float(f1[i]),
+                "support": int(support[i]),
+            }
+        
+        return per_class
+
+    def compute_macro_metrics(
+        self,
+        predictions: List[int],
+        labels: List[int],
+    ) -> Dict[str, float]:
+        """
+        Compute macro-averaged precision, recall, and F1 score.
+        
+        Args:
+            predictions: List of predicted class indices
+            labels: List of ground truth class indices
+            
+        Returns:
+            Dictionary with macro metrics
+        """
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            labels, predictions, average='macro', zero_division=0
+        )
+        
+        return {
+            "macro_precision": float(precision),
+            "macro_recall": float(recall),
+            "macro_f1": float(f1),
+        }

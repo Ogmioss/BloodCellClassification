@@ -110,17 +110,17 @@ class YamlLoader:
     @property
     def data_dir(self) -> Path:
         """Retourne le chemin du dossier data."""
-        return self.get_dir("paths.data.root", "./src/data")
+        return self.get_dir("paths.data.root", "./data")
 
     @property
     def data_processed_dir(self) -> Path:
         """Retourne le chemin du dossier data/processed."""
-        return self.get_dir("paths.data.processed", "./src/data/processed")
+        return self.get_dir("paths.data.processed", "./data/processed")
 
     @property
     def data_raw_dir(self) -> Path:
         """Retourne le chemin du dossier data/raw."""
-        return self.get_dir("paths.data.raw", "./src/data/raw")
+        return self.get_dir("paths.data.raw", "./data/raw")
 
     @property
     def notebooks_dir(self) -> Path:
@@ -157,20 +157,3 @@ class YamlLoader:
             "version": self.get_nested_value("project.version", "0.1.0"),
             "python_version": self.get_nested_value("environment.python_version", ">=3.11"),
         }
-
-
-# Instance par défaut pour compatibilité avec l'ancienne API
-_default_loader = YamlLoader()
-
-# Variables au niveau module pour compatibilité
-DATA_DIR: Path = _default_loader.data_dir
-DATA_RAW_DIR: Path = _default_loader.data_raw_dir
-
-
-
-def get_paths() -> dict[str, Path]:
-    """
-    Retourne les chemins résolus (absolus) sous forme de dict.
-    Fonction de compatibilité avec l'ancienne API.
-    """
-    return _default_loader.get_all_paths()
