@@ -1,8 +1,10 @@
-"""Module pour générer les graphiques de distribution RGB."""
+"""Module pour generer les graphiques de distribution RGB."""
 
-from typing import Dict, Tuple
+from typing import Dict
 import numpy as np
 import plotly.graph_objects as go
+
+from src.utils.chart_generator import ChartGenerator
 
 
 class RGBChartGenerator:
@@ -51,8 +53,8 @@ class RGBChartGenerator:
             ),
         )
         
-        return fig
-    
+        return ChartGenerator._apply_theme(fig)
+
     def create_rgb_distribution_figure(
         self, 
         cell_type: str,
@@ -88,27 +90,15 @@ class RGBChartGenerator:
             )
         
         fig.update_layout(
-            title=dict(
-                text=f"<b>{cell_type}</b>",
-                font=dict(size=20, color="#222", family="Arial Black"),
-                x=0.5,
-                y=0.93,
-            ),
+            title=cell_type,
             xaxis=dict(
-                title="Valeur de pixel (0–255)",
-                showgrid=True,
-                gridcolor="rgba(220,220,220,0.3)",
+                title="Valeur de pixel (0-255)",
             ),
             yaxis=dict(
-                title="Densité",
-                showgrid=True,
-                gridcolor="rgba(220,220,220,0.3)",
+                title="Densite",
                 range=[0, y_max * 1.1],
             ),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=40, r=20, t=60, b=40),
             hovermode="x unified",
         )
-        
-        return fig
+
+        return ChartGenerator._apply_theme(fig)

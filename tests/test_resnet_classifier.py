@@ -2,7 +2,6 @@
 Tests for ResNetClassifier
 """
 
-import pytest
 import torch
 from src.models.resnet_classifier import ResNetClassifier
 

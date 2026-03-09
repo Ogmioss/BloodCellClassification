@@ -1,351 +1,264 @@
+"""Model page — display model info, metrics and trigger training via FastAPI."""
+
 import streamlit as st
-import torch
-from pathlib import Path
-import sys
-import json
-import subprocess
-import time
 import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+import httpx
 
-# Fix for "could not create a primitive" error in PyTorch 2.9.0+cpu
-torch.backends.mkldnn.enabled = False
+from src.core.config import get_service_url
+from src.utils.streamlit_style import apply_global_style
+from src.utils.streamlit_sidebar import render_mlops_sidebar
 
-# Add project root to path for imports
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+FASTAPI_URL = get_service_url("api")
+MLFLOW_URL = get_service_url("mlflow")
 
-from src.services.yaml_loader import YamlLoader
-from src.models.model_factory import ModelFactory
+st.set_page_config(page_title="Modele", layout="wide")
+apply_global_style()
+render_mlops_sidebar()
 
-st.title("🧠 Modèle de classification")
+st.title("Modele de classification")
 
-# Class names
-CLASS_NAMES = [
-    'basophil', 'eosinophil', 'erythroblast', 'immature_granulocyte',
-    'lymphocyte', 'monocyte', 'neutrophil', 'platelet'
-]
 
-# Load configuration
-@st.cache_resource
-def load_config():
+# ── Helpers ───────────────────────────────────────────────────────────
+@st.cache_data(ttl=60)
+def _api_get_cached(path: str, timeout: float = 10.0) -> dict | None:
+    """GET helper with cache for stable endpoints."""
     try:
-        yaml_loader = YamlLoader()
-        return yaml_loader.config, yaml_loader
-    except Exception as e:
-        st.error(f"Erreur lors du chargement de la configuration: {e}")
-        return None, None
+        resp = httpx.get(f"{FASTAPI_URL}{path}", timeout=timeout)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return None
 
-config, yaml_loader = load_config()
 
-if config is None:
-    st.stop()
+def _api_get(path: str, timeout: float = 10.0) -> dict | None:
+    """GET helper returning JSON or None on failure."""
+    try:
+        resp = httpx.get(f"{FASTAPI_URL}{path}", timeout=timeout)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return None
 
-# Section 1: Pré-traitement des images
-st.header("📊 1. Pré-traitement des images")
 
-with st.expander("⚡ Détails du pré-traitement", expanded=True):
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Configuration d'entraînement")
-        training_config = config.get('training', {})
-        st.write(f"- **Taille d'image:** {training_config.get('img_size', 224)}x{training_config.get('img_size', 224)}")
-        st.write(f"- **Batch size:** {training_config.get('batch_size', 32)}")
-        st.write(f"- **Epochs:** {training_config.get('epochs', 20)}")
-        st.write(f"- **Learning rate:** {training_config.get('learning_rate', 0.001)}")
-    
-    with col2:
-        st.subheader("🔄 Augmentations")
-        aug_config = config.get('augmentation', {}).get('train', {})
-        if aug_config.get('horizontal_flip'):
-            st.write("✅ Flip horizontal")
-        if aug_config.get('vertical_flip'):
-            st.write("✅ Flip vertical")
-        rotation = aug_config.get('rotation_degrees', 0)
-        if rotation > 0:
-            st.write(f"✅ Rotation: ±{rotation}°")
-        if aug_config.get('color_jitter'):
-            st.write("✅ Color jitter")
-    
-    st.subheader("🎯 Normalisation")
-    norm_config = config.get('model', {}).get('normalization', {})
-    st.write(f"- **Mean:** {norm_config.get('mean', [0.485, 0.456, 0.406])}")
-    st.write(f"- **Std:** {norm_config.get('std', [0.229, 0.224, 0.225])}")
+# ── API health check ──────────────────────────────────────────────────
+health = _api_get("/health")
+api_available = health is not None
 
-# Section 2: Architecture du modèle
-st.header("🏛️ 2. Architecture du modèle")
+if not api_available:
+    st.warning(
+        "API non disponible. Les sections interactives (entrainement, metriques) "
+        "sont desactivees. Lancez `uv run start-api` pour les activer."
+    )
 
-model_config = config.get('model', {})
-model_name = model_config.get('name', 'resnet18')
-pretrained = model_config.get('pretrained', True)
 
-st.markdown(f"""
-### Modèle utilisé: **{model_name.upper()}**
+# ── Section 1: Model info ────────────────────────────────────────────
+st.header("1. Architecture du modele")
+
+if api_available:
+    model_info = _api_get_cached("/model/info")
+    if model_info:
+        model_name = model_info.get("model_name", "resnet18")
+        class_names = model_info.get("class_names", [])
+        norm = model_info.get("normalization", {})
+
+        st.markdown(f"""
+### Modele utilise: **{model_name.upper()}**
 
 - **Type:** Transfer Learning (ResNet)
-- **Pré-entraîné:** {'Oui' if pretrained else 'Non'}
-- **Poids:** {model_config.get('pretrained_weights', 'IMAGENET1K_V1')}
-- **Nombre de classes:** {len(CLASS_NAMES)}
+- **Pre-entraine:** {"Oui" if model_info.get("pretrained", True) else "Non"}
+- **Poids:** {model_info.get("pretrained_weights", "IMAGENET1K_V1")}
+- **Nombre de classes:** {model_info.get("num_classes", len(class_names))}
+- **Source du modele:** {model_info.get("model_source", "?")}
 """)
 
-with st.expander("🔍 Voir les classes"):
-    cols = st.columns(4)
-    for i, class_name in enumerate(CLASS_NAMES):
-        with cols[i % 4]:
-            st.write(f"{i+1}. {class_name}")
+        st.subheader("Normalisation")
+        st.write(f"- **Mean:** {norm.get('mean', [0.485, 0.456, 0.406])}")
+        st.write(f"- **Std:** {norm.get('std', [0.229, 0.224, 0.225])}")
 
-# Load model info
-@st.cache_resource
-def get_model_info(_config, device_str: str):
-    try:
-        device = torch.device(device_str)
-        model = ModelFactory.create_model(_config, len(CLASS_NAMES), device)
-        
-        # Count parameters
-        total_params = sum(p.numel() for p in model.parameters())
-        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        
-        return {
-            'total_params': total_params,
-            'trainable_params': trainable_params,
-            'device': str(device)
-        }
-    except Exception as e:
-        return {'error': str(e)}
-
-device = ModelFactory.get_device()
-model_info = get_model_info(config, str(device))
-
-if 'error' not in model_info:
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Paramètres totaux", f"{model_info['total_params']:,}")
-    with col2:
-        st.metric("Paramètres entraînables", f"{model_info['trainable_params']:,}")
-    with col3:
-        st.metric("Device", model_info['device'])
-
-# Section 3: Entraînement
-st.header("🚀 3. Entraînement")
-
-st.markdown("""
-- **Dataset:** Mendeley Blood Cell Images
-- **Optimiseur:** Adam
-- **Loss function:** CrossEntropyLoss avec pondération des classes
-- **Data split:** 70% train / 15% validation / 15% test
-""")
-
-# Section 4: Ré-entraînement du modèle
-st.header("🔄 4. Ré-entraînement du modèle")
-
-st.markdown("""
-Cliquez sur le bouton ci-dessous pour lancer l'entraînement d'un nouveau modèle.
-Le modèle sera automatiquement sauvegardé dans le répertoire `checkpoints`.
-""")
-
-# Initialize session state for training status
-if 'training_in_progress' not in st.session_state:
-    st.session_state.training_in_progress = False
-
-col1, col2 = st.columns([1, 3])
-
-with col1:
-    if st.button("🚀 Lancer l'entraînement", type="primary", disabled=st.session_state.training_in_progress):
-        st.session_state.training_in_progress = True
-        st.rerun()
-
-with col2:
-    if st.session_state.training_in_progress:
-        st.info("⏳ Entraînement en cours... Veuillez patienter.")
-
-# Training execution
-if st.session_state.training_in_progress:
-    with st.expander("📊 Détails de l'entraînement", expanded=True):
-        status_placeholder = st.empty()
-        log_placeholder = st.empty()
-        
-        try:
-            status_placeholder.info("🔄 Démarrage de l'entraînement...")
-            
-            # Run training script using uv
-            train_script = Path(yaml_loader.project_root) / "src" / "pipe" / "train_model.py"
-            
-            # Use subprocess to run the training
-            process = subprocess.Popen(
-                ["uv", "run", "python", "-m", "src.pipe.train_model"],
-                cwd=yaml_loader.project_root,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1
-            )
-            
-            # Capture output in real-time
-            output_lines = []
-            for line in process.stdout:
-                output_lines.append(line)
-                log_placeholder.text_area("📝 Logs d'entraînement", 
-                                         value="".join(output_lines[-50:]),  # Show last 50 lines
-                                         height=300)
-            
-            # Wait for process to complete
-            process.wait()
-            
-            if process.returncode == 0:
-                status_placeholder.success("✅ Entraînement terminé avec succès!")
-                st.success(f"🎉 Le nouveau modèle a été sauvegardé dans: `{config['paths']['models']['checkpoints']}`")
-                st.info("💡 Rafraîchissez la page pour voir les nouvelles métriques.")
-                
-                # Reset training state
-                time.sleep(2)
-                st.session_state.training_in_progress = False
-                st.rerun()
-            else:
-                status_placeholder.error(f"❌ Erreur lors de l'entraînement (code: {process.returncode})")
-                st.session_state.training_in_progress = False
-                
-        except Exception as e:
-            status_placeholder.error(f"❌ Erreur: {str(e)}")
-            st.session_state.training_in_progress = False
-
-st.markdown("---")
-
-# Section 5: Évaluation
-st.header("🎯 5. Évaluation")
-
-# Load metrics by default from checkpoints directory
-@st.cache_data
-def load_evaluation_metrics():
-    """Load evaluation metrics from the checkpoints directory."""
-    metrics_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "metrics.json"
-    
-    if metrics_path.exists():
-        try:
-            with open(metrics_path, 'r') as f:
-                return json.load(f), None
-        except Exception as e:
-            return None, f"Erreur lors du chargement des métriques: {e}"
-    else:
-        return None, "Aucun fichier de métriques trouvé"
-
-# Check for saved model
-checkpoint_path = Path(yaml_loader.project_root) / "models" / "checkpoints" / "best_model.pth"
-model_exists = checkpoint_path.exists()
-
-if model_exists:
-    import os
-    from datetime import datetime
-    
-    # Get model file info
-    model_size = os.path.getsize(checkpoint_path) / (1024 * 1024)  # Size in MB
-    model_mtime = datetime.fromtimestamp(os.path.getmtime(checkpoint_path))
-    
-    st.info(f"📦 Modèle trouvé: `best_model.pth` ({model_size:.1f} MB) - Dernière modification: {model_mtime.strftime('%Y-%m-%d %H:%M:%S')}")
-
-# Load metrics automatically
-metrics, error = load_evaluation_metrics()
-
-if metrics is not None:
-    st.success("✅ Métriques d'évaluation chargées depuis le modèle entraîné")
-    
-    # Display main metrics in prominent cards
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("🎯 Test Accuracy", f"{metrics.get('accuracy', 0):.2%}")
-    with col2:
-        st.metric("📈 Best Val Accuracy", f"{metrics.get('best_val_acc', 0):.2%}")
-    with col3:
-        st.metric("🏋️ Final Train Accuracy", f"{metrics.get('final_train_acc', 0):.2%}")
-    
-    # Display confusion matrix if available
-    if 'confusion_matrix' in metrics and 'class_names' in metrics:
-        st.markdown("---")
-        st.subheader("📊 Matrice de confusion")
-        
-        confusion_mat = np.array(metrics['confusion_matrix'])
-        class_names_list = metrics['class_names']
-        
-        # Create annotated heatmap using plotly
-        fig = ff.create_annotated_heatmap(
-            z=confusion_mat,
-            x=class_names_list,
-            y=class_names_list,
-            colorscale='Blues',
-            showscale=True,
-            annotation_text=confusion_mat.astype(str)
-        )
-        
-        # Update layout
-        fig.update_layout(
-            title='Matrice de confusion (Test Set)',
-            xaxis_title='Prédictions',
-            yaxis_title='Vraies étiquettes',
-            height=600,
-            width=800,
-            xaxis={'side': 'bottom'},
-            yaxis={'autorange': 'reversed'}
-        )
-        
-        # Update font size for annotations
-        for annotation in fig.layout.annotations:
-            annotation.font.size = 10
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Display per-class accuracy
-        st.markdown("### 📈 Précision par classe")
-        
-        # Calculate per-class accuracy
-        per_class_acc = []
-        for i, class_name in enumerate(class_names_list):
-            total = confusion_mat[i].sum()
-            correct = confusion_mat[i, i]
-            accuracy = (correct / total * 100) if total > 0 else 0
-            per_class_acc.append({
-                'Classe': class_name,
-                'Correct': int(correct),
-                'Total': int(total),
-                'Précision': f"{accuracy:.1f}%"
-            })
-        
-        # Display as table
-        df_acc = pd.DataFrame(per_class_acc)
-        st.dataframe(df_acc, use_container_width=True, hide_index=True)
-    
-    # Additional metrics details
-    with st.expander("📊 Détails complets des métriques", expanded=False):
-        # Display metrics without confusion matrix (too large for JSON display)
-        display_metrics = {k: v for k, v in metrics.items() if k != 'confusion_matrix'}
-        st.json(display_metrics)
-        
-        # Display training loss if available
-        if 'final_train_loss' in metrics:
-            st.write(f"**Final Training Loss:** {metrics['final_train_loss']:.4f}")
-        
-        # Display class names
-        if 'class_names' in metrics:
-            st.write("**Classes détectées:**")
+        with st.expander("Voir les classes"):
             cols = st.columns(4)
-            for i, class_name in enumerate(metrics['class_names']):
+            for i, cn in enumerate(class_names):
                 with cols[i % 4]:
-                    st.write(f"• {class_name}")
-elif model_exists:
-    st.warning(f"⚠️ {error}")
-    st.info("💡 Le modèle existe mais les métriques n'ont pas été sauvegardées. Ré-entraînez le modèle pour générer les métriques.")
-else:
-    st.warning(f"⚠️ {error}")
-    st.info("💡 Entraînez d'abord le modèle en cliquant sur le bouton '🚀 Lancer l'entraînement' ci-dessus.")
-    st.markdown("""
-    **Après entraînement, cette section affichera:**
-    - Accuracy sur le test set
-    - Meilleure accuracy de validation
-    - Accuracy finale d'entraînement
-    - Loss finale d'entraînement
-    """)
+                    st.write(f"{i + 1}. {cn}")
 
-st.markdown("---")
-st.caption("🛠️ Cette page utilise les services backend: ModelFactory, DataTransformService, YamlLoader")
+        # MLflow info with contextual link
+        mlflow_info = model_info.get("mlflow", {})
+        if mlflow_info.get("available"):
+            mlflow_model_name = mlflow_info.get("model_name", "")
+            mlflow_version = mlflow_info.get("latest_version", "")
+            tracking_uri = mlflow_info.get("tracking_uri", "")
+
+            st.info(
+                f"MLflow: model *{mlflow_model_name}* "
+                f"v{mlflow_version} ({tracking_uri})"
+            )
+            st.markdown(
+                f'<a href="{MLFLOW_URL}" target="_blank">'
+                f"Voir les experiences dans MLflow</a>",
+                unsafe_allow_html=True,
+            )
+    else:
+        st.warning("Impossible de charger les infos du modele.")
+else:
+    st.info("Connectez l'API pour afficher les informations du modele.")
+
+st.divider()
+
+# ── Section 2: Training trigger ───────────────────────────────────────
+st.header("2. Re-entrainement du modele")
+
+if api_available:
+    st.markdown("""
+Cliquez sur le bouton ci-dessous pour lancer l'entrainement.
+Le modele sera sauvegarde dans le repertoire `checkpoints`.
+""")
+
+    if "training_task_id" not in st.session_state:
+        st.session_state.training_task_id = None
+
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button(
+            "Lancer l'entrainement",
+            type="primary",
+            disabled=st.session_state.training_task_id is not None,
+        ):
+            try:
+                resp = httpx.post(
+                    f"{FASTAPI_URL}/ml/train",
+                    json={},
+                    timeout=10.0,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    st.session_state.training_task_id = data["task_id"]
+                    st.rerun()
+                else:
+                    st.error(f"Erreur ({resp.status_code}): {resp.text}")
+            except Exception as e:
+                st.error(f"Erreur: {e}")
+
+    with col2:
+        if st.session_state.training_task_id:
+            task = _api_get(f"/ml/tasks/{st.session_state.training_task_id}")
+            if task:
+                status = task.get("status", "unknown")
+                if status in ("pending", "running"):
+                    st.info(f"Entrainement en cours (status: {status})...")
+                elif status == "completed":
+                    st.success("Entrainement termine!")
+                    if task.get("result"):
+                        st.json(task["result"])
+                    st.session_state.training_task_id = None
+                elif status == "failed":
+                    st.error(f"Echec: {task.get('error', '?')}")
+                    st.session_state.training_task_id = None
+else:
+    st.info("Connectez l'API pour lancer un entrainement.")
+
+st.divider()
+
+# ── Section 3: Evaluation metrics ─────────────────────────────────────
+st.header("3. Evaluation")
+
+if api_available:
+    metrics = _api_get("/metrics")
+
+    if metrics:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Test Accuracy", f"{metrics.get('accuracy', 0):.2%}")
+        with col2:
+            st.metric("Best Val Accuracy", f"{metrics.get('best_val_acc', 0):.2%}")
+        with col3:
+            st.metric(
+                "Final Train Accuracy", f"{metrics.get('final_train_acc', 0):.2%}"
+            )
+
+        # Confusion matrix
+        cm_data = metrics.get("confusion_matrix")
+        cm_classes = metrics.get("class_names", [])
+        if cm_data and cm_classes:
+            st.divider()
+            st.subheader("Matrice de confusion")
+
+            confusion_mat = np.array(cm_data)
+            fig = ff.create_annotated_heatmap(
+                z=confusion_mat,
+                x=cm_classes,
+                y=cm_classes,
+                colorscale="Blues",
+                showscale=True,
+                annotation_text=confusion_mat.astype(str),
+            )
+            fig.update_layout(
+                title="Matrice de confusion (Test Set)",
+                xaxis_title="Predictions",
+                yaxis_title="Vraies etiquettes",
+                height=600,
+                xaxis={"side": "bottom"},
+                yaxis={"autorange": "reversed"},
+            )
+            for annotation in fig.layout.annotations:
+                annotation.font.size = 10
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Per-class accuracy — table + bar chart
+            st.subheader("Exactitude par classe")
+            rows = []
+            for i, cn in enumerate(cm_classes):
+                total = int(confusion_mat[i].sum())
+                correct = int(confusion_mat[i, i])
+                acc = (correct / total * 100) if total > 0 else 0
+                rows.append(
+                    {
+                        "Classe": cn,
+                        "Correct": correct,
+                        "Total": total,
+                        "Exactitude (%)": round(acc, 1),
+                    }
+                )
+
+            acc_df = pd.DataFrame(rows)
+            col_table, col_chart = st.columns([1, 2])
+            with col_table:
+                st.dataframe(acc_df, use_container_width=True, hide_index=True)
+            with col_chart:
+                sorted_acc = acc_df.sort_values("Exactitude (%)", ascending=False)
+                colors = [
+                    "#2ecc71" if v >= 90 else ("#f39c12" if v >= 70 else "#e74c3c")
+                    for v in sorted_acc["Exactitude (%)"]
+                ]
+                fig_acc = go.Figure(
+                    go.Bar(
+                        x=sorted_acc["Classe"],
+                        y=sorted_acc["Exactitude (%)"],
+                        marker_color=colors,
+                        text=[f"{v:.1f}%" for v in sorted_acc["Exactitude (%)"]],
+                        textposition="outside",
+                    )
+                )
+                fig_acc.update_layout(
+                    title="Exactitude par classe",
+                    yaxis_title="%",
+                    height=400,
+                    yaxis=dict(range=[0, 105]),
+                )
+                st.plotly_chart(fig_acc, use_container_width=True)
+
+        with st.expander("Details complets des metriques", expanded=False):
+            display = {k: v for k, v in metrics.items() if k != "confusion_matrix"}
+            st.json(display)
+    else:
+        st.warning("Aucune metrique disponible. Entrainez un modele d'abord.")
+        st.info("Lancez l'entrainement ci-dessus ou utilisez `uv run train-model`.")
+else:
+    st.info("Connectez l'API pour afficher les metriques d'evaluation.")
+
+st.divider()
+st.page_link("app.py", label="Retour a l'accueil")
