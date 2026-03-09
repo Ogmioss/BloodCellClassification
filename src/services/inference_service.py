@@ -4,7 +4,7 @@ Inference Service
 Single Responsibility: Handles model inference and prediction.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from pathlib import Path
 import torch
 from PIL import Image

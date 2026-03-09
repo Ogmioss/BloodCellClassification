@@ -54,8 +54,6 @@ class ModelFactory:
             model = CNNClassifier(num_classes=num_classes)
         else:
             raise ValueError(f"Unsupported model: {model_name}")
-                # else:
-        #     raise ValueError(f"Unsupported model: {model_name}")
         
         # Move model to device
         return model.to(device)
