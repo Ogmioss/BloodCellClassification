@@ -52,3 +52,18 @@ augmentation:
     # Validation/Test augmentations (none, just normalization)
     val_test:
         enabled: false
+
+mlflow:
+    tracking_uri: "./mlruns"  # Local file-based tracking (overridden by MLFLOW_TRACKING_URI env var in Docker)
+    experiment_name: "bloodcells-classification"
+    model_name: "bloodcells-classifier"  # Name in Model Registry
+    auto_log: false  # Manual logging for more control
+
+minio:
+    endpoint_url: "http://localhost:9000"  # Overridden by MLFLOW_S3_ENDPOINT_URL in Docker
+    access_key: "minio"
+    secret_key: "minio123"
+    buckets:
+        artifacts: "mlflow-artifacts"
+        datasets: "datasets"
+        checkpoints: "checkpoints"

@@ -5,7 +5,6 @@ Tests for the training pipeline and model saving functionality.
 import pytest
 from pathlib import Path
 import sys
-import subprocess
 import json
 
 # Add project root to path
