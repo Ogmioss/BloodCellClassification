@@ -1,121 +1,166 @@
 # BloodCellClassification
-Application pour classer les photos d'imagerie médicale de cellules sanguines par Machine Learning
 
-## 🐳 Démarrage rapide avec Docker (Recommandé)
+Application de classification de cellules sanguines par deep learning (ResNet18), avec API REST, orchestration Airflow et monitoring.
 
-### Prérequis
-- Docker
-- Docker Compose
-- **Fichier `kaggle.json`** avec vos credentials Kaggle (voir section Configuration Kaggle)
+## Architecture
 
-### Configuration Kaggle
-
-Le dataset est téléchargé automatiquement depuis Kaggle lors du build Docker. Vous devez fournir vos credentials :
-
-1. **Obtenir vos credentials Kaggle :**
-   - Aller sur https://www.kaggle.com/
-   - Profil → Account → API → "Create New API Token"
-   - Télécharger le fichier `kaggle.json`
-
-2. **Placer le fichier à la racine du projet :**
-   ```bash
-   # Le fichier doit être à la racine : ./kaggle.json
-   # Format : {"username":"votre_username","key":"votre_api_key"}
-   ```
-
-📖 **Documentation complète :** Voir [DOCKER_DATASET_SETUP.md](./DOCKER_DATASET_SETUP.md)
-
-### Lancement de l'application
-
-```bash
-# Construire et démarrer l'application
-docker-compose up -d
-
-# Voir les logs
-docker-compose logs -f
-
-# Arrêter l'application
-docker-compose down
+```
+src/
+  api/          # FastAPI REST API (prédiction, MLflow, pipelines)
+  core/         # Constantes et configuration centralisées
+  models/       # CNN classifier (ResNet18)
+  services/     # Inference, évaluation, MLflow, validation de données
+  pipe/         # Pipelines (entraînement, batch inference)
+  pages/        # Interface Streamlit (6 pages)
+  utils/        # Utilitaires (charts, GradCAM, RGB, stats)
+dags/           # DAGs Airflow (train, evaluate, batch inference, validation)
+docker/         # Dockerfiles et Docker Compose
+monitoring/     # Prometheus + Grafana
 ```
 
-L'application sera accessible à l'adresse : **http://localhost:8501**
-
-### Commandes Docker utiles
-
-```bash
-# Reconstruire l'image après modification du code
-docker-compose up -d --build
-
-# Accéder au conteneur
-docker-compose exec bloodcell-app bash
-
-# Voir l'état du conteneur
-docker-compose ps
-
-# Arrêter et supprimer les volumes
-docker-compose down -v
-```
-
-## 💻 Installation locale (Alternative)
+## Démarrage rapide
 
 ### Prérequis
-- Python 3.11+
-- uv package manager
 
-### Installation
+- Python 3.11+, [uv](https://docs.astral.sh/uv/)
+- Docker et Docker Compose (pour les stacks conteneurisées)
+- Credentials Kaggle (`kaggle.json`) pour le dataset
+
+### Installation locale
 
 ```bash
-# Installer le projet en mode éditable (requis pour les imports)
 uv pip install -e .
 ```
 
-## Chargement jeu de données
+### Chargement du dataset
+
 ```bash
 ./scripts/load_dataset.sh
 ```
 
+Le dataset contient 17 092 images de cellules sanguines normales (360x363 px) réparties en 8 classes : neutrophiles, éosinophiles, basophiles, lymphocytes, monocytes, granulocytes immatures, érythroblastes et plaquettes.
 
-### About Dataset
+### Configuration Kaggle
 
-The dataset contains a total of 17,092 images of individual normal cells, which were acquired using the analyzer CellaVision DM96 in the Core Laboratory at the Hospital Clinic of Barcelona. The dataset is organized in the following eight groups: neutrophils, eosinophils, basophils, lymphocytes, monocytes, immature granulocytes (promyelocytes, myelocytes, and metamyelocytes), erythroblasts and platelets or thrombocytes. The size of the images is 360 x 363 pixels, in format JPG, and they were annotated by expert clinical pathologists. The images were captured from individuals without infection, hematologic or oncologic disease and free of any pharmacologic treatment at the moment of blood collection.
+1. Aller sur https://www.kaggle.com/ → Profil → Account → API → "Create New API Token"
+2. Placer `kaggle.json` dans `~/.kaggle/` ou à la racine du projet
 
-This high-quality labelled dataset may be used to train and test machine learning and deep learning models to recognize different types of normal peripheral blood cells. To our knowledge, this is the first publicly available set with large numbers of normal peripheral blood cells, so that it is expected to be a canonical dataset for model benchmarking.
+## Utilisation
 
-## Entraînement du modèle
-
-### Avec Docker
-
-```bash
-# Entraîner le modèle dans le conteneur
-docker-compose exec bloodcell-app uv run train-model
-```
-
-### En local
+### Entraînement
 
 ```bash
-# Recommandé avec uv
 uv run train-model
 ```
 
-Ou directement:
+### API FastAPI
+
 ```bash
-python3 -m src.pipe.train_model
+uv run start-api
 ```
 
-## Prédiction
-scripts/predict.py
+L'API est accessible sur **http://localhost:8000/docs** avec les endpoints :
+- `GET /health` — Health check
+- `POST /predict` — Prédiction sur image (base64)
+- `POST /predict/upload` — Prédiction sur fichier uploadé
+- `GET /model/info` — Informations du modèle
+- `GET /metrics` — Métriques de performance
+- `POST /pipelines/*` — Déclenchement des DAGs Airflow
 
-## Interface utilisateur
-
-### Avec Docker
-L'interface est automatiquement lancée avec `docker-compose up -d`
-
-### En local
+### Interface Streamlit
 
 ```bash
-# Avec uv (recommandé)
 uv run streamlit run src/app.py
-
-# Ou avec le script de lancement
-./start.sh
 ```
+
+Accessible sur **http://localhost:8501**
+
+### Batch inference
+
+```bash
+uv run batch-inference
+```
+
+## Docker
+
+### Stack light (développement)
+
+```bash
+docker compose -f docker/docker-compose.light.yml up -d
+```
+
+| Service    | URL                          |
+|------------|------------------------------|
+| API        | http://localhost:8000/docs    |
+| Streamlit  | http://localhost:8501         |
+| MLflow     | http://localhost:5000         |
+| MinIO      | http://localhost:9001         |
+
+### Stack complète (MLOps)
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+| Service    | URL                          | Credentials     |
+|------------|------------------------------|-----------------|
+| Streamlit  | http://localhost:8502         |                 |
+| API        | http://localhost:8001/docs    |                 |
+| Airflow    | http://localhost:8081         | admin / admin   |
+| MLflow     | http://localhost:5002         |                 |
+| MinIO      | http://localhost:9003         | minio / minio123|
+
+### Monitoring (overlay sur stack complète)
+
+```bash
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.monitoring.yml up -d
+```
+
+| Service    | URL                          | Credentials     |
+|------------|------------------------------|-----------------|
+| Prometheus | http://localhost:9090         |                 |
+| Grafana    | http://localhost:3000         | admin / admin   |
+
+### Airflow standalone
+
+```bash
+docker compose -f docker/docker-compose.airflow.yml up -d
+```
+
+## Tests
+
+```bash
+# Tests unitaires
+uv run pytest tests/ --ignore=tests/test_dags.py --ignore=tests/test_performance.py --ignore=tests/test_integration.py
+
+# Tests des DAGs Airflow
+uv run pytest tests/test_dags.py
+
+# Tests d'intégration
+uv run pytest tests/test_integration.py
+
+# Tests de performance
+uv run pytest tests/test_performance.py
+```
+
+## CI/CD
+
+Les workflows GitHub Actions exécutent automatiquement :
+- **CI** : lint (ruff), tests unitaires, tests DAGs, tests d'intégration, build Docker, audit de sécurité (pip-audit)
+- **CD** : build et push des images Docker, déploiement
+
+## Technologies
+
+- **ML** : PyTorch (ResNet18), torchvision, Captum (GradCAM)
+- **API** : FastAPI, Uvicorn, Pydantic v2
+- **Tracking** : MLflow, MinIO (S3)
+- **Orchestration** : Apache Airflow
+- **Monitoring** : Prometheus, Grafana
+- **UI** : Streamlit
+- **CI/CD** : GitHub Actions, Docker
+
+## Dataset
+
+> A. Acevedo et al., "A dataset of microscopic peripheral blood cell images for development of automatic recognition systems", Data in Brief, 2020.
+
+Le dataset est disponible sur [Kaggle](https://www.kaggle.com/datasets/unclesamulus/blood-cells-image-dataset).
