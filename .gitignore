@@ -196,12 +196,23 @@ cython_debug/
 
 
 # BloodCellClassification
-src/data/
+data/raw/
+data/processed/
 
 # Kaggle credentials (sensitive)
 kaggle.json
 
 # Runtime files
 streamlit.pid
-logs/streamlit.log
+logs/
 nohup.out
+
+# MLflow runtime artifacts
+mlflow.db
+mlruns/
+
+# Airflow runtime
+airflow_home/
+
+tasks/
+
