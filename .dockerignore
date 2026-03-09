@@ -26,11 +26,8 @@ env
 *~
 
 # Data (will be mounted as volume)
-# Note: src/data is NOT excluded as it's needed during build for dataset download
-data
-data/
-data/**
-!data/.gitkeep
+data/raw/*
+data/processed/*
 
 # Models (will be mounted as volume)
 models/checkpoints
@@ -50,31 +47,32 @@ streamlit.pid
 
 # Documentation
 docs/
-# README.md is needed for package build
-# LICENSE
-TODO.md
 
-# Notebooks (exclude only notebook files, not the directory structure)
+# Notebooks
+notebooks/
 *.ipynb
 .ipynb_checkpoints
-# Keep src/notebooks/ structure but exclude notebook files via *.ipynb
 
 # Scripts (not needed in container, except load_dataset.sh)
 scripts/*
 !scripts/load_dataset.sh
-start.sh
-stop.sh
 
 # Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
+docker/
 
 # Tests
 tests/
 
-# Large application data
-app_display_data/
+# Runtime artifacts
+mlflow.db
+mlruns/
+airflow_home/
+
+# Specs & AI tooling
+specs/
+.claude/
+.specify/
+.env*
 
 # UV lock file (will be regenerated)
 # Keep pyproject.toml but exclude lock for faster builds
