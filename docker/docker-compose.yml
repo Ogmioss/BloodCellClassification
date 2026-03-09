@@ -1,0 +1,316 @@
+# =============================================================================
+# Blood Cell Classification - Full MLOps Stack
+# =============================================================================
+# Usage: docker compose -f docker/docker-compose.yml up -d
+#
+# Services:
+#   - Streamlit UI:    http://localhost:8502
+#   - FastAPI:         http://localhost:8001/docs
+#   - Airflow:         http://localhost:8081 (admin/admin)
+#   - MLflow:          http://localhost:5002
+#   - MinIO Console:   http://localhost:9003 (minio/minio123)
+# =============================================================================
+
+x-airflow-common: &airflow-common
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile.airflow
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__WEBSERVER__WORKERS: '1'
+    AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT: '300'
+    AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: '300'
+    AIRFLOW__CORE__DAGS_FOLDER: /app/dags
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    FASTAPI_URL: http://api:8000
+    PYTHONPATH: /app
+    # MinIO S3 credentials (for MLflow artifact access)
+    AWS_ACCESS_KEY_ID: minio
+    AWS_SECRET_ACCESS_KEY: minio123
+    MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+  volumes:
+    - ../dags:/app/dags
+    - ../src:/app/src
+    - ../models:/app/models
+    - ../conf.yaml:/app/conf.yaml
+    - airflow-logs:/opt/airflow/logs
+    - ../mlruns:/app/mlruns
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+services:
+  # ===========================================================================
+  # PostgreSQL for Airflow metadata
+  # ===========================================================================
+  postgres:
+    image: postgres:15
+    container_name: bloodcell-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  # ===========================================================================
+  # MinIO S3-compatible Object Storage
+  # ===========================================================================
+  minio:
+    image: minio/minio:RELEASE.2024-06-13T22-53-53Z
+    container_name: bloodcell-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  # ===========================================================================
+  # MinIO Init — Create default buckets
+  # ===========================================================================
+  minio-init:
+    image: minio/mc:RELEASE.2024-06-12T14-34-03Z
+    container_name: bloodcell-minio-init
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        until mc alias set local http://minio:9000 minio minio123; do sleep 2; done
+        mc mb --ignore-existing local/mlflow-artifacts
+        mc mb --ignore-existing local/datasets
+        mc mb --ignore-existing local/checkpoints
+        echo "Buckets created successfully"
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  # ===========================================================================
+  # MLflow Tracking Server
+  # ===========================================================================
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.0
+    container_name: bloodcell-mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlruns/mlflow.db
+      --default-artifact-root s3://mlflow-artifacts/
+      --host 0.0.0.0
+      --port 5000
+      --serve-artifacts
+    ports:
+      - "5002:5000"
+    environment:
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    volumes:
+      - ../mlruns:/mlruns
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    restart: always
+
+  # ===========================================================================
+  # MLflow Model Serving (serves Production model)
+  # ===========================================================================
+  mlflow-serve:
+    image: ghcr.io/mlflow/mlflow:v2.17.0
+    container_name: bloodcell-mlflow-serve
+    command: >
+      mlflow models serve
+      --model-uri models:/bloodcells-classifier/Production
+      --host 0.0.0.0
+      --port 5001
+      --no-conda
+    ports:
+      - "5001:5001"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+    volumes:
+      - ../mlruns:/mlruns
+    depends_on:
+      - mlflow
+    restart: on-failure
+    # Note: This service will fail if no Production model exists yet.
+    # Run training first and promote a model to Production.
+
+  # ===========================================================================
+  # Airflow Init (database migration and user creation)
+  # ===========================================================================
+  airflow-init:
+    <<: *airflow-common
+    container_name: bloodcell-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com \
+          --password admin || true
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+    depends_on:
+      <<: *airflow-common-depends-on
+    restart: "no"
+
+  # ===========================================================================
+  # Airflow Webserver
+  # ===========================================================================
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: bloodcell-airflow-webserver
+    command: webserver
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  # ===========================================================================
+  # Airflow Scheduler
+  # ===========================================================================
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: bloodcell-airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  # ===========================================================================
+  # FastAPI Application
+  # ===========================================================================
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: bloodcell-api
+    ports:
+      - "8001:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONUNBUFFERED=1
+      # Airflow API integration
+      - AIRFLOW_API_URL=http://airflow-webserver:8080/api/v1
+      - AIRFLOW_USERNAME=admin
+      - AIRFLOW_PASSWORD=admin
+      # MinIO S3
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+    volumes:
+      - ../src:/app/src
+      - ../models:/app/models
+      - ../data:/app/data
+      - ../conf.yaml:/app/conf.yaml
+      - ../mlruns:/app/mlruns
+    depends_on:
+      - mlflow
+      - airflow-webserver
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # Streamlit Application
+  # ===========================================================================
+  streamlit:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.streamlit
+    container_name: bloodcell-streamlit
+    ports:
+      - "8502:8501"
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../logs:/app/logs
+      - ../kaggle.json:/root/.kaggle/kaggle.json:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # URLs internes (health checks depuis le container)
+      - FASTAPI_URL=http://api:8000
+      - MLFLOW_URL=http://mlflow:5000
+      - AIRFLOW_URL=http://airflow-webserver:8080
+      - GRAFANA_URL=http://grafana:3000
+      # URLs externes (liens navigateur)
+      - FASTAPI_EXTERNAL_URL=http://localhost:8001
+      - MLFLOW_EXTERNAL_URL=http://localhost:5002
+      - AIRFLOW_EXTERNAL_URL=http://localhost:8081
+      - GRAFANA_EXTERNAL_URL=http://localhost:3000
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres-db:
+  airflow-logs:
+  minio-data:
+
+networks:
+  default:
+    name: bloodcell-network
