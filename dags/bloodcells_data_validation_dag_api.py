@@ -16,7 +16,7 @@ Schedule: Manual trigger
 import os
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow import DAG, Dataset
 from airflow.operators.python import PythonOperator
 
 
@@ -25,6 +25,10 @@ from airflow.operators.python import PythonOperator
 # ============================================================
 
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://api:8000")
+
+# Airflow Datasets — visible in the Datasets UI tab
+DATASET_RAW = Dataset("file:///app/data/raw/bloodcells_dataset")
+DATASET_PROCESSED = Dataset("file:///app/data/processed/bloodcells_dataset")
 
 default_args = {
     "owner": "mlops",
@@ -161,6 +165,7 @@ with DAG(
         task_id="report_results",
         python_callable=report_results,
         provide_context=True,
+        outlets=[DATASET_RAW, DATASET_PROCESSED],
     )
 
     check_api >> validate >> report

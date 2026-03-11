@@ -17,7 +17,7 @@ Schedule: Manual trigger or weekly
 import os
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow import DAG, Dataset
 from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -28,6 +28,10 @@ from airflow.utils.trigger_rule import TriggerRule
 
 FASTAPI_URL = os.getenv("FASTAPI_URL", "http://api:8000")
 MIN_ACCURACY_THRESHOLD = 0.90
+
+# Airflow Datasets — same URIs as in data_validation DAG
+DATASET_RAW = Dataset("file:///app/data/raw/bloodcells_dataset")
+DATASET_PROCESSED = Dataset("file:///app/data/processed/bloodcells_dataset")
 
 default_args = {
     "owner": "mlops",
@@ -57,10 +61,18 @@ def check_api_health(**context) -> bool:
 def trigger_training(**context) -> dict:
     """Trigger training via FastAPI and wait for completion."""
     from dags.utils.api_client import run_training_and_wait
-    
+
+    dag_conf = context.get("dag_run", {}) and context["dag_run"].conf or {}
+    dataset_path = dag_conf.get("dataset_path")
+
+    if dataset_path:
+        print(f"🗂️  Using dataset: {dataset_path}")
+    else:
+        print("🗂️  Using default dataset (raw/bloodcells_dataset)")
+
     print("🚀 Starting training via API...")
-    
-    result = run_training_and_wait()
+
+    result = run_training_and_wait(dataset_path=dataset_path)
     
     # Extract results
     task_result = result.get("result", {})
@@ -170,11 +182,12 @@ with DAG(
         provide_context=True,
     )
     
-    # Task: Trigger training
+    # Task: Trigger training (consumes datasets)
     train = PythonOperator(
         task_id="trigger_training",
         python_callable=trigger_training,
         provide_context=True,
+        inlets=[DATASET_RAW, DATASET_PROCESSED],
     )
     
     # Task: Decide promotion

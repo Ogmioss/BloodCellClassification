@@ -28,13 +28,26 @@ router = APIRouter(prefix="/ml", tags=["ML Tasks"])
 # Persistent task storage (survives API restarts)
 _store = TaskStore()
 
+# Base data directory (resolved once at import)
+_DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+
 
 # ============================================================
 # Request/Response Schemas
 # ============================================================
 
+class DatasetInfo(BaseModel):
+    """Description of an available dataset."""
+    name: str = Field(description="Dataset identifier (e.g. 'raw/bloodcells_dataset')")
+    path: str = Field(description="Absolute path to the dataset")
+    num_classes: int = Field(description="Number of class sub-folders")
+    classes: list[str] = Field(description="List of class names")
+    total_images: int = Field(description="Total number of image files")
+
+
 class TrainRequest(BaseModel):
     """Request to start training."""
+    dataset_path: Optional[str] = Field(None, description="Path to dataset (relative to data/ or absolute). Default: raw/bloodcells_dataset")
     epochs: Optional[int] = Field(None, description="Override number of epochs")
     learning_rate: Optional[float] = Field(None, description="Override learning rate")
     batch_size: Optional[int] = Field(None, description="Override batch size")
@@ -68,6 +81,56 @@ class TaskResponse(BaseModel):
 
 
 # ============================================================
+# Helpers
+# ============================================================
+
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
+
+
+def _scan_datasets(base_dir: Path) -> list[DatasetInfo]:
+    """Scan base_dir for ImageFolder-compatible datasets (dir with class sub-dirs containing images)."""
+    datasets: list[DatasetInfo] = []
+    if not base_dir.is_dir():
+        return datasets
+
+    for category in sorted(base_dir.iterdir()):
+        if not category.is_dir():
+            continue
+        # category = raw, processed, ...
+        for ds_dir in sorted(category.iterdir()):
+            if not ds_dir.is_dir():
+                continue
+            # Check if it has class sub-folders with images
+            class_dirs = [d for d in sorted(ds_dir.iterdir()) if d.is_dir()]
+            if not class_dirs:
+                continue
+            total = 0
+            for cd in class_dirs:
+                total += sum(1 for f in cd.iterdir() if f.suffix.lower() in _IMAGE_EXTENSIONS)
+            if total == 0:
+                continue
+            rel_name = f"{category.name}/{ds_dir.name}"
+            datasets.append(DatasetInfo(
+                name=rel_name,
+                path=str(ds_dir),
+                num_classes=len(class_dirs),
+                classes=[d.name for d in class_dirs],
+                total_images=total,
+            ))
+    return datasets
+
+
+def _resolve_dataset_path(dataset_path: Optional[str]) -> Path:
+    """Resolve a dataset_path (relative to data/ or absolute) to an absolute Path."""
+    if dataset_path is None:
+        return _DATA_DIR / "raw" / "bloodcells_dataset"
+    p = Path(dataset_path)
+    if p.is_absolute():
+        return p
+    return _DATA_DIR / p
+
+
+# ============================================================
 # Background Task Runners
 # ============================================================
 
@@ -85,10 +148,8 @@ def _run_training(task_id: str, config_overrides: dict):
     try:
         from src.pipe.train_model import main as train_main
 
-        # Note: config_overrides (epochs, lr, batch_size) are not yet passed to
-        # train_main() because it reads from conf.yaml directly. To implement,
-        # train_main() needs to accept an optional overrides dict.
-        results = train_main()
+        dataset_path = _resolve_dataset_path(config_overrides.pop("dataset_path", None))
+        results = train_main(dataset_path=dataset_path)
 
         _store.update_task(
             task_id,
@@ -248,6 +309,17 @@ def _run_data_validation(task_id: str, dataset_path: Optional[str], check_images
 # ============================================================
 # Endpoints
 # ============================================================
+
+@router.get(
+    "/datasets",
+    response_model=list[DatasetInfo],
+    summary="List available datasets",
+    description="Scan data/ directory for ImageFolder-compatible datasets.",
+)
+async def list_datasets() -> list[DatasetInfo]:
+    """List all datasets available for training."""
+    return _scan_datasets(_DATA_DIR)
+
 
 @router.post(
     "/train",

@@ -71,25 +71,38 @@ def wait_for_api(max_retries: int = 30, retry_interval: float = 2.0) -> bool:
     raise APIError(f"API not ready after {max_retries * retry_interval}s")
 
 
+def list_datasets() -> list[dict]:
+    """
+    List available datasets from API.
+
+    Returns:
+        List of dataset info dicts (name, path, num_classes, classes, total_images)
+    """
+    return _make_request("GET", "/ml/datasets")
+
+
 def start_training(
+    dataset_path: Optional[str] = None,
     epochs: Optional[int] = None,
     learning_rate: Optional[float] = None,
     batch_size: Optional[int] = None,
 ) -> str:
     """
     Start a training task via API.
-    
+
     Returns:
         task_id: ID of the started task
     """
     payload = {}
+    if dataset_path is not None:
+        payload["dataset_path"] = dataset_path
     if epochs is not None:
         payload["epochs"] = epochs
     if learning_rate is not None:
         payload["learning_rate"] = learning_rate
     if batch_size is not None:
         payload["batch_size"] = batch_size
-    
+
     result = _make_request("POST", "/ml/train", json=payload)
     return result["task_id"]
 
