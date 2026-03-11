@@ -23,27 +23,33 @@ from src.services.mlflow_service import MLflowService
 from src.models.model_factory import ModelFactory
 
 
-def main():
-    """Main training pipeline with MLflow tracking."""
-    
+def main(dataset_path: Path | None = None):
+    """Main training pipeline with MLflow tracking.
+
+    Args:
+        dataset_path: Optional override for the dataset directory.
+                      Defaults to data/raw/bloodcells_dataset.
+    """
+
     # Load configuration
     print("Loading configuration...")
     loader = YamlLoader()
     config = loader.config
-    
+
     # Initialize MLflow service
     print("Initializing MLflow tracking...")
     mlflow_service = MLflowService.from_config(config)
     run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     mlflow_service.start_run(run_name=run_name)
     print(f"MLflow run started: {mlflow_service.run_id}")
-    
+
     # Log git info and dataset path
     mlflow_service.log_git_info()
-    
+
     # Get dataset path
-    data_dir = loader.data_dir
-    dataset_path = data_dir / "raw" / "bloodcells_dataset"
+    if dataset_path is None:
+        data_dir = loader.data_dir
+        dataset_path = data_dir / "raw" / "bloodcells_dataset"
     
     print(f"Dataset path: {dataset_path}")
     

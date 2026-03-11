@@ -214,5 +214,8 @@ mlruns/
 # Airflow runtime
 airflow_home/
 
+# Generated GPU compose override (machine-specific)
+docker/docker-compose.gpu.yml
+
 tasks/
 
