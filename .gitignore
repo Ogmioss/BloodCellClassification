@@ -219,3 +219,11 @@ docker/docker-compose.gpu.yml
 
 tasks/
 
+# Claude Code / Speckit (machine-specific)
+.claude/
+.specify/
+
+# Data, models & notebooks (stored externally / too large for git)
+data/
+models/inference_results/
+notebooks/
