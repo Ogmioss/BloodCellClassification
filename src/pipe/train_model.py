@@ -20,6 +20,7 @@ from src.services.dataset_service import DatasetService
 from src.services.training_service import TrainingService
 from src.services.evaluation_service import EvaluationService
 from src.services.mlflow_service import MLflowService
+from src.services.training_metrics import TrainingMetricsReporter
 from src.models.model_factory import ModelFactory
 
 
@@ -152,12 +153,24 @@ def main(dataset_path: Path | None = None, config_overrides: dict | None = None)
     print("\n" + "="*50)
     print("Starting training...")
     print("="*50)
-    
-    training_service = TrainingService(config, model, device, class_weights)
+
+    # Setup Prometheus metrics reporter (fail-safe, optional)
+    metrics_reporter = TrainingMetricsReporter(
+        run_id=mlflow_service.run_id,
+        model_name=config.get("model", {}).get("name", "resnet18"),
+    )
+    metrics_reporter.report_start(
+        total_epochs=config.get("training", {}).get("epochs", 20),
+    )
+
+    training_service = TrainingService(
+        config, model, device, class_weights,
+        metrics_reporter=metrics_reporter,
+    )
     training_metrics = training_service.train(
-        train_loader, 
-        val_loader, 
-        checkpoint_path
+        train_loader,
+        val_loader,
+        checkpoint_path,
     )
     
     print("\n" + "="*50)
@@ -201,6 +214,17 @@ def main(dataset_path: Path | None = None, config_overrides: dict | None = None)
         test_results['labels']
     )
     
+    # Report final metrics to Pushgateway
+    per_class_f1 = {
+        class_name: metrics["f1"]
+        for class_name, metrics in per_class_metrics.items()
+    } if per_class_metrics else None
+    metrics_reporter.report_end(
+        test_accuracy=test_results['accuracy'],
+        macro_f1=macro_metrics.get('macro_f1'),
+        per_class_f1=per_class_f1,
+    )
+
     # Log metrics to MLflow
     mlflow_service.log_metrics({
         "best_val_acc": training_metrics['best_val_acc'],

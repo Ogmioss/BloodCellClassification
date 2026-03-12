@@ -1,0 +1,50 @@
+groups:
+  - name: bloodcell_alerts
+    rules:
+      # API availability
+      - alert: APIDown
+        expr: up{job="bloodcell-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BloodCell API is down"
+          description: "The API has been unreachable for more than 2 minutes."
+
+      # High prediction error rate
+      - alert: HighPredictionErrorRate
+        expr: >
+          sum(rate(bloodcell_prediction_errors_total[5m]))
+          / sum(rate(bloodcell_predictions_total[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 10% of predictions are failing"
+          description: "Prediction error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      # Possible data drift — model is uncertain
+      - alert: LowConfidencePredictions
+        expr: >
+          sum(rate(bloodcell_prediction_confidence_bucket{le="0.5"}[15m]))
+          / sum(rate(bloodcell_prediction_confidence_count[15m]))
+          > 0.3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Possible data drift — high rate of low-confidence predictions"
+          description: "{{ $value | humanizePercentage }} of predictions have confidence below 0.5 over the last 15 minutes."
+
+      # Training stalled
+      - alert: TrainingStalled
+        expr: >
+          changes(bloodcell_training_epoch[30m]) == 0
+          and bloodcell_training_status == 1
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Training appears stalled"
+          description: "Training status is active but epoch count has not changed in 30 minutes."

@@ -22,35 +22,38 @@ class TrainingService:
     """
     
     def __init__(
-        self, 
+        self,
         config: Dict[str, Any],
         model: BaseClassifier,
         device: torch.device,
-        class_weights: Optional[torch.Tensor] = None
+        class_weights: Optional[torch.Tensor] = None,
+        metrics_reporter=None,
     ):
         """
         Initialize training service.
-        
+
         Args:
             config: Configuration dictionary
             model: Model to train
             device: Device to train on
             class_weights: Optional class weights for loss function
+            metrics_reporter: Optional TrainingMetricsReporter for Pushgateway
         """
         self.config = config
         self.model = model
         self.device = device
-        
+        self.metrics_reporter = metrics_reporter
+
         training_config = config.get('training', {})
         self.epochs = training_config.get('epochs', 20)
         self.learning_rate = training_config.get('learning_rate', 1e-3)
-        
+
         # Setup loss and optimizer
         if class_weights is not None:
             class_weights = class_weights.to(device)
         self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         self.optimizer = optim.Adam(model.parameters(), lr=self.learning_rate)
-        
+
         self.best_val_acc = 0.0
     
     def train(
@@ -87,6 +90,16 @@ class TrainingService:
                 if checkpoint_path:
                     self._save_checkpoint(checkpoint_path)
                     print(">>> Best model saved!")
+
+            # Push metrics to Pushgateway
+            if self.metrics_reporter:
+                self.metrics_reporter.report_epoch(
+                    epoch=epoch + 1,
+                    train_loss=train_loss,
+                    train_acc=train_acc,
+                    val_acc=val_acc,
+                    best_val_acc=self.best_val_acc,
+                )
         
         return {
             'best_val_acc': self.best_val_acc,

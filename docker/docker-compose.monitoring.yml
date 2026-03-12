@@ -19,6 +19,7 @@ services:
       - "9090:9090"
     volumes:
       - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -27,8 +28,16 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
     restart: always
-    networks:
-      - bloodcell-network
+
+  # ===========================================================================
+  # Pushgateway - Batch Job Metrics (training pipeline)
+  # ===========================================================================
+  pushgateway:
+    image: prom/pushgateway:v1.6.2
+    container_name: bloodcell-pushgateway
+    ports:
+      - "9091:9091"
+    restart: always
 
   # ===========================================================================
   # Grafana - Metrics Visualization
@@ -49,13 +58,7 @@ services:
     depends_on:
       - prometheus
     restart: always
-    networks:
-      - bloodcell-network
 
 volumes:
   prometheus_data:
   grafana_data:
-
-networks:
-  bloodcell-network:
-    name: bloodcell-network
