@@ -225,5 +225,6 @@ tasks/
 
 # Data, models & notebooks (stored externally / too large for git)
 data/
+models/checkpoints/
 models/inference_results/
 notebooks/
