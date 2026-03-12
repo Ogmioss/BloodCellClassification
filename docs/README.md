@@ -4,7 +4,9 @@
 
 | Document | Description |
 |----------|-------------|
+| [guide-creation-modele.md](guide-creation-modele.md) | Creer et entrainer un nouveau modele de A a Z |
 | [guide-entrainement.md](guide-entrainement.md) | Comment entrainer un modele avec MLflow et Airflow |
+| [guide-promotion-modele.md](guide-promotion-modele.md) | Promouvoir un modele vers Staging ou Production |
 | [architecture.md](architecture.md) | Architecture du projet, services, et flux de donnees |
 | [setup-docker.md](setup-docker.md) | Installation Docker, configuration des services, dataset |
 | [troubleshooting.md](troubleshooting.md) | Problemes connus et solutions (PyTorch, GradCAM, etc.) |

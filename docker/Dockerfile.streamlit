@@ -1,53 +1,84 @@
-# Multi-stage build for Blood Cell Classification application
-FROM python:3.11-slim AS base
+# =============================================================================
+# Dockerfile for Streamlit Dashboard
+# Multi-stage: compile in builder, copy only runtime to final image
+# =============================================================================
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
+# =============================================================================
+# Builder stage — install all Python deps (with build tools if needed)
+# =============================================================================
+FROM python:3.11-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1 \
-    libglib2.0-0 \
-    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv package manager
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+RUN pip install --no-cache-dir uv
 
-# Set working directory
 WORKDIR /app
 ENV UV_HTTP_TIMEOUT=600
 
-# Pre-install PyTorch CPU-only (~2GB instead of ~4GB GPU)
-# uv sync will see these as already satisfied and skip the GPU version
+# Install PyTorch CPU-only first (~280MB instead of ~2GB GPU)
 RUN uv pip install --system --no-cache-dir \
     torch>=2.9.0 \
     torchvision>=0.24.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Copy application code (needed for package build)
-COPY . .
+# Install all remaining deps (matching pyproject.toml)
+# DO NOT use uv sync — the uv.lock resolves CUDA deps
+RUN uv pip install --system --no-cache-dir \
+    streamlit>=1.50.0 \
+    fastapi>=0.115.0 \
+    uvicorn>=0.30.0 \
+    pillow>=10.0.0 \
+    pyyaml>=6.0.3 \
+    scikit-learn>=1.7.2 \
+    scikit-image>=0.25.2 \
+    'mlflow>=2.17.0,<3' \
+    python-multipart>=0.0.9 \
+    pydantic>=2.0.0 \
+    httpx>=0.27.0 \
+    prometheus-fastapi-instrumentator>=7.0.0 \
+    prometheus-client>=0.21.0 \
+    numpy>=1.26.0 \
+    scipy>=1.11.0 \
+    boto3>=1.35.0 \
+    tqdm>=4.67.1 \
+    matplotlib>=3.10.7 \
+    plotly>=5.18.0 \
+    seaborn>=0.13.2 \
+    opencv-python>=4.12.0.88 \
+    captum>=0.7.0
 
-# Install remaining dependencies using uv (torch already satisfied by CPU version)
-RUN uv sync --frozen --no-dev
+# =============================================================================
+# Final stage — runtime only (no gcc/g++/make/build-essential)
+# =============================================================================
+FROM python:3.11-slim AS final
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy installed Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY src /app/src
+COPY conf.yaml /app/conf.yaml
+COPY models /app/models
 
 # Create necessary directories
 RUN mkdir -p logs data/raw data/processed models/checkpoints
-
-# Setup Kaggle credentials directory
-RUN mkdir -p /root/.kaggle
-
-# Copy Kaggle credentials (required for dataset download)
-COPY kaggle.json /root/.kaggle/
-RUN chmod 600 /root/.kaggle/kaggle.json
-
-# Make load_dataset.sh executable and run it to download dataset
-RUN chmod +x scripts/load_dataset.sh
-RUN bash scripts/load_dataset.sh || echo "Dataset download skipped (Kaggle credentials may be missing)"
 
 # Expose Streamlit port
 EXPOSE 8501
 
 # Set environment variables
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV STREAMLIT_SERVER_PORT=8501
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
@@ -59,4 +90,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 # Run Streamlit application
-CMD ["uv", "run", "streamlit", "run", "src/app.py"]
+CMD ["streamlit", "run", "src/app.py"]

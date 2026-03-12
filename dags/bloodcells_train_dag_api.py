@@ -63,16 +63,22 @@ def trigger_training(**context) -> dict:
     from dags.utils.api_client import run_training_and_wait
 
     dag_conf = context.get("dag_run", {}) and context["dag_run"].conf or {}
-    dataset_path = dag_conf.get("dataset_path")
 
-    if dataset_path:
-        print(f"🗂️  Using dataset: {dataset_path}")
+    # Extract all supported training overrides from DAG conf
+    training_kwargs = {}
+    for key in ("dataset_path", "model_name", "epochs", "learning_rate", "batch_size"):
+        value = dag_conf.get(key)
+        if value is not None:
+            training_kwargs[key] = value
+
+    if training_kwargs:
+        print(f"🔧 Training overrides from DAG conf: {training_kwargs}")
     else:
-        print("🗂️  Using default dataset (raw/bloodcells_dataset)")
+        print("🗂️  Using all defaults from conf.yaml")
 
     print("🚀 Starting training via API...")
 
-    result = run_training_and_wait(dataset_path=dataset_path)
+    result = run_training_and_wait(**training_kwargs)
     
     # Extract results
     task_result = result.get("result", {})

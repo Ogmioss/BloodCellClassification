@@ -83,6 +83,7 @@ def list_datasets() -> list[dict]:
 
 def start_training(
     dataset_path: Optional[str] = None,
+    model_name: Optional[str] = None,
     epochs: Optional[int] = None,
     learning_rate: Optional[float] = None,
     batch_size: Optional[int] = None,
@@ -96,6 +97,8 @@ def start_training(
     payload = {}
     if dataset_path is not None:
         payload["dataset_path"] = dataset_path
+    if model_name is not None:
+        payload["model_name"] = model_name
     if epochs is not None:
         payload["epochs"] = epochs
     if learning_rate is not None:

@@ -7,6 +7,7 @@ Single Responsibility: Handles MLflow experiment tracking and model registry.
 import os
 import subprocess
 import signal
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -30,8 +31,12 @@ def timeout(seconds: int):
     def timeout_handler(signum, frame):
         raise MLflowTimeoutError(f"MLflow operation timed out after {seconds}s")
     
-    # Only works on Unix
-    if hasattr(signal, 'SIGALRM'):
+    # signal.alarm only works on Unix *and* in the main thread
+    can_use_signal = (
+        hasattr(signal, 'SIGALRM')
+        and threading.current_thread() is threading.main_thread()
+    )
+    if can_use_signal:
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(seconds)
         try:
@@ -40,7 +45,7 @@ def timeout(seconds: int):
             signal.alarm(0)
             signal.signal(signal.SIGALRM, old_handler)
     else:
-        # Windows fallback - no timeout
+        # Windows / background-thread fallback — no timeout
         yield
 
 

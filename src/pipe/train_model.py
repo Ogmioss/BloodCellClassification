@@ -23,18 +23,55 @@ from src.services.mlflow_service import MLflowService
 from src.models.model_factory import ModelFactory
 
 
-def main(dataset_path: Path | None = None):
+_OVERRIDE_MAP = {
+    "epochs":        ("training", "epochs"),
+    "learning_rate": ("training", "learning_rate"),
+    "batch_size":    ("training", "batch_size"),
+    "model_name":    ("model", "name"),
+}
+
+_VALID_MODEL_PREFIXES = ("resnet", "cnn")
+
+
+def _apply_overrides(config: dict, overrides: dict) -> None:
+    """Merge flat override keys into the nested config dict.
+
+    Raises ValueError for unknown keys or invalid model names.
+    """
+    for key, value in overrides.items():
+        if key not in _OVERRIDE_MAP:
+            raise ValueError(f"Unknown config override: {key!r}")
+        section, field = _OVERRIDE_MAP[key]
+        config.setdefault(section, {})[field] = value
+
+    model_name = config.get("model", {}).get("name", "resnet18")
+    if not any(model_name.startswith(p) for p in _VALID_MODEL_PREFIXES):
+        raise ValueError(
+            f"Unsupported model_name: {model_name!r}. "
+            f"Supported prefixes: {_VALID_MODEL_PREFIXES}"
+        )
+
+
+def main(dataset_path: Path | None = None, config_overrides: dict | None = None):
     """Main training pipeline with MLflow tracking.
 
     Args:
         dataset_path: Optional override for the dataset directory.
                       Defaults to data/raw/bloodcells_dataset.
+        config_overrides: Optional dict of training overrides (epochs,
+                          learning_rate, batch_size, model_name).
+                          Values override conf.yaml defaults.
     """
 
     # Load configuration
     print("Loading configuration...")
     loader = YamlLoader()
     config = loader.config
+
+    # Apply overrides from API/Airflow (before any service reads the config)
+    if config_overrides:
+        _apply_overrides(config, config_overrides)
+        print(f"Config overrides applied: {config_overrides}")
 
     # Initialize MLflow service
     print("Initializing MLflow tracking...")

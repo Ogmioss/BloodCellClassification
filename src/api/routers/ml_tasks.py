@@ -48,6 +48,7 @@ class DatasetInfo(BaseModel):
 class TrainRequest(BaseModel):
     """Request to start training."""
     dataset_path: Optional[str] = Field(None, description="Path to dataset (relative to data/ or absolute). Default: raw/bloodcells_dataset")
+    model_name: Optional[str] = Field(None, description="Override model architecture (e.g. resnet18, resnet34, resnet50, cnn)")
     epochs: Optional[int] = Field(None, description="Override number of epochs")
     learning_rate: Optional[float] = Field(None, description="Override learning rate")
     batch_size: Optional[int] = Field(None, description="Override batch size")
@@ -149,7 +150,7 @@ def _run_training(task_id: str, config_overrides: dict):
         from src.pipe.train_model import main as train_main
 
         dataset_path = _resolve_dataset_path(config_overrides.pop("dataset_path", None))
-        results = train_main(dataset_path=dataset_path)
+        results = train_main(dataset_path=dataset_path, config_overrides=config_overrides)
 
         _store.update_task(
             task_id,
@@ -163,6 +164,12 @@ def _run_training(task_id: str, config_overrides: dict):
             },
         )
     except Exception as e:
+        # Ensure any orphaned MLflow run is closed so retries don't fail
+        try:
+            import mlflow
+            mlflow.end_run()
+        except Exception:
+            pass
         _store.update_task(
             task_id,
             status=TaskStatus.FAILED,

@@ -136,10 +136,10 @@ curl -X POST http://localhost:8001/ml/train \
   -H "Content-Type: application/json" \
   -d '{}'
 
-# Ou avec des parametres personnalises
+# Ou avec des parametres personnalises (modele + hyperparametres)
 curl -X POST http://localhost:8001/ml/train \
   -H "Content-Type: application/json" \
-  -d '{"epochs": 10, "learning_rate": 0.0005, "batch_size": 16}'
+  -d '{"model_name": "resnet50", "epochs": 10, "learning_rate": 0.0005, "batch_size": 16}'
 ```
 
 Reponse :
@@ -326,8 +326,17 @@ training_complete
 1. Ouvrir http://localhost:8081 (admin / admin)
 2. Dans la liste des DAGs, trouver `bloodcells_train_model_api`
 3. Activer le DAG (toggle ON)
-4. Cliquer sur le bouton "Play" (Trigger DAG)
-5. Optionnel : passer des parametres JSON dans "Trigger DAG w/ config"
+4. Cliquer sur le bouton "Play" > **Trigger DAG w/ config**
+5. Passer le JSON de configuration (tous les champs sont optionnels) :
+   ```json
+   {
+     "model_name": "resnet50",
+     "epochs": 30,
+     "learning_rate": 0.0005,
+     "batch_size": 64,
+     "dataset_path": "raw/bloodcells_dataset"
+   }
+   ```
 6. Suivre l'execution dans la vue "Graph" ou "Grid"
 
 ### Lancer un DAG via l'API FastAPI
@@ -391,15 +400,20 @@ curl -X POST "http://localhost:8001/mlflow/promote/{version}?stage=Production"
 # 5. Promouvoir manuellement le meilleur modele en Production si necessaire
 ```
 
-### Experimenter avec des hyperparametres
+### Experimenter avec des hyperparametres et modeles
 
 ```bash
-# Essayer differentes configurations
+# Essayer ResNet50 avec un learning rate plus bas
 curl -X POST http://localhost:8001/ml/train \
   -H "Content-Type: application/json" \
-  -d '{"epochs": 30, "learning_rate": 0.0001, "batch_size": 64}'
+  -d '{"model_name": "resnet50", "epochs": 30, "learning_rate": 0.0001, "batch_size": 64}'
 
-# Comparer dans MLflow UI
+# Essayer le CNN simple pour un test rapide
+curl -X POST http://localhost:8001/ml/train \
+  -H "Content-Type: application/json" \
+  -d '{"model_name": "cnn", "epochs": 10}'
+
+# Comparer les runs dans MLflow UI (http://localhost:5002)
 ```
 
 ---
