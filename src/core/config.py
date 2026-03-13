@@ -10,6 +10,7 @@ _INTERNAL_ENV_KEYS = {
     "airflow": "AIRFLOW_URL",
     "grafana": "GRAFANA_URL",
     "prometheus": "PROMETHEUS_URL",
+    "minio": "MINIO_URL",
 }
 
 # URLs externes (pour les liens navigateur) — suffixe _EXTERNAL_URL
@@ -19,6 +20,7 @@ _EXTERNAL_ENV_KEYS = {
     "airflow": "AIRFLOW_EXTERNAL_URL",
     "grafana": "GRAFANA_EXTERNAL_URL",
     "prometheus": "PROMETHEUS_EXTERNAL_URL",
+    "minio": "MINIO_EXTERNAL_URL",
 }
 
 _DEFAULTS = {
@@ -27,6 +29,7 @@ _DEFAULTS = {
     "airflow": "http://localhost:8080",
     "grafana": "http://localhost:3000",
     "prometheus": "http://localhost:9090",
+    "minio": "http://localhost:9001",
 }
 
 

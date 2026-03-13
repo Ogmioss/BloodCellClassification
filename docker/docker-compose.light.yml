@@ -120,6 +120,8 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - FASTAPI_URL=http://api:8000
+      - MINIO_URL=http://minio:9001
+      - MINIO_EXTERNAL_URL=http://localhost:9001
     volumes:
       - ../models:/app/models
       - ../data:/app/data

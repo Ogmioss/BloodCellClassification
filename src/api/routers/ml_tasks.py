@@ -531,3 +531,59 @@ async def delete_task(task_id: str) -> dict:
 
     _store.delete(task_id)
     return {"message": f"Task {task_id} deleted"}
+
+
+# ============================================================
+# Dataset S3 Sync Endpoints
+# ============================================================
+
+@router.post(
+    "/datasets/sync",
+    summary="Sync local datasets to MinIO S3",
+    description="Upload local datasets to the S3 datasets bucket.",
+)
+async def sync_datasets_to_s3() -> dict:
+    """Sync local datasets to MinIO S3."""
+    from src.services.s3_service import S3Service
+    from src.services.yaml_loader import YamlLoader
+
+    loader = YamlLoader()
+    config = loader.config
+    s3 = S3Service.from_config(config)
+
+    datasets_bucket = config.get("minio", {}).get("buckets", {}).get("datasets", "datasets")
+    dataset_path = loader.data_dir / "raw" / "bloodcells_dataset"
+
+    if not dataset_path.is_dir():
+        raise HTTPException(status_code=404, detail=f"Local dataset not found: {dataset_path}")
+
+    count = s3.upload_directory(dataset_path, datasets_bucket, dataset_path.name)
+    return {
+        "message": f"Uploaded {count} files to s3://{datasets_bucket}/{dataset_path.name}",
+        "bucket": datasets_bucket,
+        "prefix": dataset_path.name,
+        "files_uploaded": count,
+    }
+
+
+@router.get(
+    "/datasets/s3-status",
+    summary="Get S3 datasets bucket status",
+    description="Check the status of datasets in MinIO S3.",
+)
+async def get_datasets_s3_status() -> dict:
+    """Get S3 datasets bucket status."""
+    from src.services.s3_service import S3Service
+    from src.services.yaml_loader import YamlLoader
+
+    loader = YamlLoader()
+    config = loader.config
+    s3 = S3Service.from_config(config)
+
+    minio_buckets = config.get("minio", {}).get("buckets", {})
+    result = {}
+    for name, bucket in minio_buckets.items():
+        stats = s3.get_bucket_stats(bucket)
+        result[name] = stats if stats else {"bucket": bucket, "error": "bucket not found"}
+
+    return result

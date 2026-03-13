@@ -6,9 +6,6 @@ Single Responsibility: Handles MLflow experiment tracking and model registry.
 
 import os
 import subprocess
-import signal
-import threading
-from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -23,30 +20,6 @@ from mlflow.tracking import MlflowClient
 class MLflowTimeoutError(Exception):
     """Raised when MLflow operation times out."""
     pass
-
-
-@contextmanager
-def timeout(seconds: int):
-    """Context manager for timeout on Unix systems."""
-    def timeout_handler(signum, frame):
-        raise MLflowTimeoutError(f"MLflow operation timed out after {seconds}s")
-    
-    # signal.alarm only works on Unix *and* in the main thread
-    can_use_signal = (
-        hasattr(signal, 'SIGALRM')
-        and threading.current_thread() is threading.main_thread()
-    )
-    if can_use_signal:
-        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(seconds)
-        try:
-            yield
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
-    else:
-        # Windows / background-thread fallback — no timeout
-        yield
 
 
 class MLflowService:
@@ -83,18 +56,17 @@ class MLflowService:
         self._client: Optional[MlflowClient] = None
 
     def _ensure_initialized(self) -> bool:
-        """Lazy initialization of MLflow with timeout protection."""
+        """Lazy initialization of MLflow."""
         if self._initialized:
             return True
-        
+
         try:
-            with timeout(self.connection_timeout):
-                mlflow.set_tracking_uri(self.tracking_uri)
-                mlflow.set_experiment(self.experiment_name)
-                self._client = MlflowClient(tracking_uri=self.tracking_uri)
-                self._initialized = True
-                return True
-        except (MLflowTimeoutError, Exception) as e:
+            mlflow.set_tracking_uri(self.tracking_uri)
+            mlflow.set_experiment(self.experiment_name)
+            self._client = MlflowClient(tracking_uri=self.tracking_uri)
+            self._initialized = True
+            return True
+        except Exception as e:
             print(f"⚠️ MLflow initialization failed: {e}")
             return False
 
@@ -145,7 +117,12 @@ class MLflowService:
         Returns:
             Run ID
         """
-        run = mlflow.start_run(run_name=run_name)
+        if not self._ensure_initialized():
+            raise MLflowTimeoutError("MLflow not available")
+
+        experiment = mlflow.get_experiment_by_name(self.experiment_name)
+        experiment_id = experiment.experiment_id if experiment else None
+        run = mlflow.start_run(run_name=run_name, experiment_id=experiment_id)
         self._run_id = run.info.run_id
         return self._run_id
 
@@ -244,15 +221,14 @@ class MLflowService:
             Model version number or None if not found
         """
         try:
-            with timeout(self.connection_timeout):
-                if stage:
-                    versions = self.client.get_latest_versions(self.model_name, stages=[stage])
-                else:
-                    versions = self.client.get_latest_versions(self.model_name)
-                
-                if versions:
-                    return versions[0].version
-                return None
+            if stage:
+                versions = self.client.get_latest_versions(self.model_name, stages=[stage])
+            else:
+                versions = self.client.get_latest_versions(self.model_name)
+
+            if versions:
+                return versions[0].version
+            return None
         except (mlflow.exceptions.MlflowException, MLflowTimeoutError):
             return None
 

@@ -39,6 +39,7 @@ def render_mlops_sidebar() -> None:
     health_mlflow = _check_service_health(urls["mlflow"], "/health")
     health_airflow = _check_service_health(urls["airflow"], "/health")
     health_grafana = _check_service_health(urls["grafana"], "/api/health")
+    health_minio = _check_service_health(urls["minio"], "/minio/health/live")
 
     with st.sidebar:
         st.markdown("---")
@@ -54,6 +55,10 @@ def render_mlops_sidebar() -> None:
         )
         st.markdown(
             f'{_status_icon(health_grafana)} <a href="{ext["grafana"]}" target="_blank">Grafana</a>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'{_status_icon(health_minio)} <a href="{ext["minio"]}" target="_blank">MinIO S3</a>',
             unsafe_allow_html=True,
         )
         st.markdown(

@@ -20,6 +20,7 @@ from src.services.dataset_service import DatasetService
 from src.services.training_service import TrainingService
 from src.services.evaluation_service import EvaluationService
 from src.services.mlflow_service import MLflowService
+from src.services.s3_service import S3Service
 from src.services.training_metrics import TrainingMetricsReporter
 from src.models.model_factory import ModelFactory
 
@@ -90,7 +91,19 @@ def main(dataset_path: Path | None = None, config_overrides: dict | None = None)
         dataset_path = data_dir / "raw" / "bloodcells_dataset"
     
     print(f"Dataset path: {dataset_path}")
-    
+
+    # Sync dataset to MinIO S3
+    try:
+        s3_service = S3Service.from_config(config)
+        datasets_bucket = config.get("minio", {}).get("buckets", {}).get("datasets", "datasets")
+        s3_service.ensure_dataset_synced(
+            local_path=dataset_path,
+            bucket=datasets_bucket,
+            prefix=dataset_path.name,
+        )
+    except Exception as e:
+        print(f"Warning: S3 dataset sync failed (non-blocking): {e}")
+
     # Set useful tags for tracking
     mlflow_service.set_tags({
         "dataset_path": str(dataset_path),
